@@ -15,7 +15,7 @@ import re
 from collections.abc import Sequence
 from typing import Protocol
 
-PROMPT_VERSION = "g1"
+PROMPT_VERSION = "g3"  # g3: SOUND_VARIANTS[2] reworded so "yes" means sound
 
 
 class ChatTemplater(Protocol):
@@ -173,10 +173,35 @@ SOUND_INSTRUCTION = (
 NEXT_INSTRUCTION = "Which candidate next step is most likely to lead to a correct final answer?"
 FINAL_INSTRUCTION = "Is the final answer of this solution correct?"
 
-# Three phrasings for the pilot's prompt-sensitivity check; the first must equal the main one.
-SOUND_VARIANTS: list[str] = [SOUND_INSTRUCTION]
+# per_candidate_noul ablation (SPEC.md §8.4): one noul question per candidate
+# instead of a single choice question.
+CANDIDATE_INSTRUCTION_TEMPLATE = (
+    "Does the following step correctly continue the solution so far?\n\nSTEP: {candidate}"
+)
+
+# Three phrasings for the pilot's prompt-sensitivity check (spec §7); the
+# first must equal the main instruction used everywhere else.
+SOUND_VARIANTS: list[str] = [
+    SOUND_INSTRUCTION,
+    (
+        "Check the solution so far step by step. Are all steps valid and free of "
+        "mathematical or logical errors, regardless of whether it reaches a final "
+        "answer yet?"
+    ),
+    # every variant must ask so that "yes" means SOUND (the value is P(yes))
+    (
+        "Would a careful grader accept all of the reasoning and arithmetic shown so far "
+        "as free of errors, even though the solution may not be finished?"
+    ),
+]
 
 
 def judge_state(problem: str, steps: list[str]) -> str:
     """``PROBLEM:\\n...\\n\\nSOLUTION SO FAR:\\nStep 1: ...`` (SPEC.md §5.3)."""
-    raise NotImplementedError("Person 2 (Jagriti)")
+    return f"PROBLEM:\n{problem.strip()}\n\nSOLUTION SO FAR:\n{format_steps(steps)}".rstrip()
+
+
+def judge_state_final(problem: str, steps: list[str]) -> str:
+    """Like ``judge_state``, but headed ``SOLUTION:`` for a terminal state
+    (used by ``final_correct``, which asks about the finished solution)."""
+    return f"PROBLEM:\n{problem.strip()}\n\nSOLUTION:\n{format_steps(steps)}".rstrip()

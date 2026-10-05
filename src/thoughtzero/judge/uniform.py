@@ -9,13 +9,14 @@ class UniformJudge:
     async def prior_and_value(
         self, problem: str, steps: list[str], candidates: list[str]
     ) -> tuple[list[float], float]:
-        raise NotImplementedError("Person 2 (Jagriti)")
+        n = len(candidates)
+        return [1.0 / n] * n, 0.5
 
     async def final_correct(self, problem: str, steps: list[str]) -> float:
-        raise NotImplementedError("Person 2 (Jagriti)")
+        return 0.5
 
     async def step_sound(self, problem: str, steps: list[str]) -> float:
-        raise NotImplementedError("Person 2 (Jagriti)")
+        return 0.5
 
 
 class ConstantValueJudge:
@@ -25,10 +26,11 @@ class ConstantValueJudge:
     async def prior_and_value(
         self, problem: str, steps: list[str], candidates: list[str]
     ) -> tuple[list[float], float]:
-        raise NotImplementedError("Person 2 (Jagriti)")
+        n = len(candidates)
+        return [1.0 / n] * n, self.value
 
     async def final_correct(self, problem: str, steps: list[str]) -> float:
-        raise NotImplementedError("Person 2 (Jagriti)")
+        return self.value
 
     async def step_sound(self, problem: str, steps: list[str]) -> float:
-        raise NotImplementedError("Person 2 (Jagriti)")
+        return self.value

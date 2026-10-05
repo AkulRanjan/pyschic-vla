@@ -16,7 +16,9 @@ dist/
 .ruff_cache/
 
 # Results, caches, weights
-results/
+# run outputs; the write-up itself is tracked
+results/*
+!results/REPORT.md
 .cache/
 jev_cache/
 *.sqlite

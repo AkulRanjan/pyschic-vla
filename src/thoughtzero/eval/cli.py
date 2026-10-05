@@ -34,6 +34,10 @@ def setup(args: argparse.Namespace) -> Config:
         cfg = apply_variant(cfg, args.variant)
     if args.mock:  # the toy task has exactly three increments to branch on
         cfg = cfg.model_copy(update={"search": cfg.search.model_copy(update={"k": 3})})
+    else:  # hard cap on Jev spend for this run (SPEC.md §5.4); JevJudge raises BudgetExceeded
+        from thoughtzero.judge import budget
+
+        budget.configure(cfg.budget.max_usd, cfg.judge.usd_per_mtok)
     return cfg
 
 
