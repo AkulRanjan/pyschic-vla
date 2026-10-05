@@ -43,3 +43,15 @@ def dirichlet_noise(
     draws = [rng.gammavariate(alpha, 1.0) for _ in priors]
     total = sum(draws) or 1.0
     return [(1 - epsilon) * p + epsilon * d / total for p, d in zip(priors, draws, strict=True)]
+
+
+def floor_priors(priors: list[float], floor: float) -> list[float]:
+    """``(1 - floor) * P + floor / k``: every candidate keeps at least ``floor / k``.
+
+    A judge can give a candidate exactly 0 (real Jev rounds to 2 decimals); PUCT would then
+    never explore it, even when the judge is wrong (PLAN D9). Still sums to 1.
+    """
+    if not priors or floor <= 0:
+        return list(priors)
+    k = len(priors)
+    return [(1 - floor) * p + floor / k for p in priors]

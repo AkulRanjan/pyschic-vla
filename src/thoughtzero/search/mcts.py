@@ -43,7 +43,7 @@ from thoughtzero.search.extract import (
     value_vote,
 )
 from thoughtzero.search.node import Node
-from thoughtzero.search.puct import dirichlet_noise, select_child
+from thoughtzero.search.puct import dirichlet_noise, floor_priors, select_child
 from thoughtzero.types import Generator, Judge
 
 log = logging.getLogger(__name__)
@@ -124,6 +124,8 @@ async def _expand(node: Node, ctx: _Ctx) -> float:
         raise ValueError(f"judge returned {len(priors)} priors for {len(texts)} candidates")
     if not node.steps and ctx.cfg.root_dirichlet_alpha:
         priors = dirichlet_noise(priors, ctx.cfg.root_dirichlet_alpha, ctx.rng)
+    if ctx.cfg.prior_floor:
+        priors = floor_priors(priors, ctx.cfg.prior_floor)
 
     node.value = value
     node.children = [

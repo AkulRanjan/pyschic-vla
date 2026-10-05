@@ -102,3 +102,11 @@ def test_dirichlet_noise() -> None:
     assert noisy == dirichlet_noise(priors, alpha=0.3, rng=random.Random(0))
     assert dirichlet_noise(priors, 0.3, random.Random(0), epsilon=0.0) == pytest.approx(priors)
     assert dirichlet_noise([], 0.3, random.Random(0)) == []
+
+
+def test_floor_priors_keeps_every_candidate_explorable() -> None:
+    from thoughtzero.search.puct import floor_priors
+
+    floored = floor_priors([1.0, 0.0, 0.0], 0.06)
+    assert floored == pytest.approx([0.96, 0.02, 0.02]) and sum(floored) == pytest.approx(1.0)
+    assert floor_priors([0.7, 0.3], 0.0) == [0.7, 0.3]  # 0 = spec behaviour, unchanged

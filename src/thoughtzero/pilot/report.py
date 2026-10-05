@@ -50,10 +50,11 @@ class Decision:
     auroc: float
     ci: tuple[float, float]
     straddles: tuple[float, ...]  # thresholds that fall inside the CI
+    reason: str = "no Jev scores joined with labels yet."  # why UNAVAILABLE
 
     def markdown(self) -> str:
         if self.verdict == "UNAVAILABLE":
-            return "**DECISION: UNAVAILABLE**: no Jev scores joined with labels yet."
+            return f"**DECISION: UNAVAILABLE**: {self.reason}"
         lo, hi = self.ci
         s = (
             f"**DECISION: {self.verdict}**: Jev AUROC = {self.auroc:.3f} "
@@ -69,8 +70,12 @@ class Decision:
         return s
 
 
-def decide(auroc_value: float, ci: tuple[float, float] = (math.nan, math.nan)) -> Decision:
+def decide(
+    auroc_value: float, ci: tuple[float, float] = (math.nan, math.nan), reason: str | None = None
+) -> Decision:
     if auroc_value is None or math.isnan(auroc_value):
+        if reason:
+            return Decision("UNAVAILABLE", math.nan, ci, (), reason)
         return Decision("UNAVAILABLE", math.nan, ci, ())
     if auroc_value >= GO_THRESHOLD:
         v = "GO"
@@ -410,7 +415,17 @@ def build_report(
             jev_rows = rows
 
     jm = ctx["judges"].get(DECISION_JUDGE, {})
-    ctx["decision"] = decide(jm.get("auroc", math.nan), jm.get("auroc_ci", (math.nan, math.nan)))
+    reason = None
+    classes = {bool(r["hard_label"]) for r in jev_rows}
+    if len(classes) == 1:  # AUROC needs both correct and incorrect prefixes
+        which = "correct" if classes == {True} else "incorrect"
+        reason = (
+            f"all {len(jev_rows)} scored prefixes are labelled {which}, so AUROC is undefined. "
+            "The pilot needs prefixes of both kinds (more or harder problems)."
+        )
+    ctx["decision"] = decide(
+        jm.get("auroc", math.nan), jm.get("auroc_ci", (math.nan, math.nan)), reason
+    )
     ctx["coverage"] = {
         "n_prefixes": len(prefixes),
         "n_labelled": len(labels),

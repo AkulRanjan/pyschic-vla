@@ -1,11 +1,15 @@
-# Phase 1 pilot (SPEC.md §7). Owner: Person 4 (Harjas).
+# Phase 1 pilot (SPEC.md §7; PLAN.md S2).
 base: default.yaml
 pilot:
   n_problems: 200
-  source_split: test            # SPEC.md §7; B11.1 proposes "train" (team decides at CP0/CP2)
+  source_split: train           # MATH train, not MATH-500: no prompt tuning on test data (PLAN D1, 2026-10-05)
+  levels: [5]                   # hardest level only: Gemma 26B solved 5/5 random problems, leaving no
+                                # incorrect prefixes; on level 5 it solved 65% (PLAN D13, 2026-10-05)
   max_prefixes: 8
   m_completions: 8
   temperature: 0.7
   sensitivity_subset: 50
+generator:
+  max_solution_tokens: 4096     # level-5 solutions hit the 2048 default: 25% of traces were cut off
 budget:
-  max_usd: 1.0
+  max_usd: 1.0                  # Jev only; Gemma spend is not capped here (see PLAN D3)

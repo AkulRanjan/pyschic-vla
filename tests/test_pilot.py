@@ -276,3 +276,11 @@ def test_report_warns_on_skewed_labels():
         },
     }
     assert "AUROC is noisy" in report.render_report(ctx)
+
+
+def test_one_class_labels_explain_why_the_decision_is_unavailable() -> None:
+    from thoughtzero.pilot.report import decide
+
+    dec = decide(math.nan, reason="all 40 scored prefixes are labelled correct")
+    assert dec.verdict == "UNAVAILABLE" and "labelled correct" in dec.markdown()
+    assert "no Jev scores joined" in decide(math.nan).markdown()

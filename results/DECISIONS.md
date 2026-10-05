@@ -2,6 +2,20 @@
 
 Protocol and design decisions, newest first. Open decisions are listed in `PLAN.md` §2.
 
+## 2026-10-05 — Pilot on hard MATH train problems (D1, D13)
+
+**Decided by:** Prakhar ("go with next phase", accepting the recommendations).
+
+- The pilot draws from the **MATH train split**, not MATH-500 (SPEC.md §7 said MATH-500), so
+  no judge-prompt tuning touches test data.
+- **Level 5 only**: with Gemma 26B, 5 random train problems gave 40 prefixes all labelled
+  correct (AUROC undefined); on 20 level-5 problems it solved 65%. The report must state
+  that the pilot covers hard problems only.
+- `generator.max_solution_tokens = 4096` for the pilot: 25% of level-5 traces hit the 2048
+  limit and were cut off without an answer.
+- `search.prior_floor` (PLAN D9) exists, default 0 (spec behaviour); it doesn't affect the
+  pilot (no search) and gets compared in S4.
+
 ## 2026-10-05 — Generator: Gemma 4 26B-A4B on OpenRouter (replaces self-hosted E4B)
 
 **Decided by:** Prakhar.
