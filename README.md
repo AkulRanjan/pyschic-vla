@@ -11,8 +11,9 @@ Training-free, AlphaZero-style tree search over the reasoning steps of a math so
 ## Quickstart (development)
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+git clone https://github.com/AkulRanjan/pyschic-vla.git && cd pyschic-vla
+python -m venv .venv              # needs Python 3.11+
+source .venv/bin/activate         # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 cp .env.example .env              # fill in your own keys
 pytest                            # offline, no keys needed
@@ -36,4 +37,4 @@ python scripts/smoke_test.py --mock
 
 ## License
 
-Apache-2.0
+MIT (see `LICENSE`). Gemma model weights are under their own licence.

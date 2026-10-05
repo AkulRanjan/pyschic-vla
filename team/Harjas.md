@@ -380,7 +380,7 @@ class Judge(Protocol):
 
 **One-time setup**
 ```bash
-git clone <repo-url> thoughtzero && cd thoughtzero
+git clone https://github.com/AkulRanjan/pyschic-vla.git && cd pyschic-vla
 git config core.autocrlf input        # Windows users: avoids CRLF diffs
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
