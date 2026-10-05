@@ -58,3 +58,21 @@ async def test_renders_a_real_tree_dump() -> None:
     dump = json.loads(json.dumps(result.tree_dump))  # as stored in per_problem.jsonl
     out = format_tree(dump)
     assert len(out.splitlines()) == result.stats["n_nodes"]
+
+
+def test_html_page_marks_the_most_visited_path() -> None:
+    from thoughtzero.search.tree_html import most_visited_ids, tree_to_html
+
+    tree = {
+        **ROOT,
+        "id": 0,
+        "children": [
+            {**leaf(1, 0.7, "rarely <visited>"), "id": 1},
+            {**leaf(5, 0.1, "most visited"), "id": 2},
+        ],
+    }
+    assert most_visited_ids(tree) == {0, 2}
+    page = tree_to_html(tree, problem="2+2?", answer="4", gold="4")
+    assert page.startswith("<!doctype html>") and "✓ correct" in page
+    assert "rarely &lt;visited&gt;" in page  # escaped
+    assert page.index("most visited") < page.index("rarely")  # ordered by visits

@@ -181,6 +181,25 @@ then do a fresh-clone check (§1 commands) and tag `v0.1.0`.
 
 ---
 
+## Demonstration (for presentations)
+
+```bash
+python scripts/demo.py --mock --html demo.html     # offline, no keys: always works
+python scripts/demo.py --html demo.html            # real Gemma + judge, from .env (~2–5 min)
+python scripts/demo.py --problem "What is 3^4 - 2^5?" --gold 49 --html demo.html
+```
+
+It narrates the search live: each expansion's candidate next steps with the judge's prior as a
+bar, the judge's value of the state, each finished solution with the judge's verdict. Then it
+prints the chosen solution, the answer (✓/✗), the search tree and a no-search baseline on the
+same problem, and `--html` writes an interactive page of the whole tree (collapsible nodes,
+the chosen path in green) to open in a browser.
+
+**Suggested walkthrough (5 minutes):** run the mock demo first. The toy judge's prior always
+favours "add 5", so plain greedy ends at 15 (wrong), while the search follows the judge's
+*values* and finds 13. Open `demo.html` and follow the green path. Then run the real demo on
+a maths problem to show the same machinery with Gemma and the judge.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
