@@ -1,0 +1,22 @@
+# Ablations (SPEC.md §8.4), run on the fixed 200-problem ablation subset at one n_simulations.
+# Each variant is a list of overrides applied on top of this file (config.apply_variant).
+base: default.yaml
+eval:
+  dataset: math500
+  n_problems: 200
+  subset_seed: 1
+search:
+  n_simulations: 32
+variants:
+  # Person 1 (Prakhar)
+  k2: ["search.k=2"]
+  k6: ["search.k=6"]
+  cpuct_0.5: ["search.c_puct=0.5"]
+  cpuct_3.0: ["search.c_puct=3.0"]
+  value_vote: ["search.extract_mode=value_vote"]
+  # Person 2 (Jagriti)
+  prior_only: ["judge.kind=hybrid", "judge.prior_from=jev", "judge.value_from=constant"]
+  value_only: ["judge.kind=hybrid", "judge.prior_from=uniform", "judge.value_from=jev"]
+  per_candidate_noul: ["judge.prior_mode=per_candidate_noul"]
+  # Person 3 (Akul)
+  short_steps: ["generator.max_step_tokens=96"]

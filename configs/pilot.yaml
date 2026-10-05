@@ -1,0 +1,11 @@
+# Phase 1 pilot (SPEC.md §7). Owner: Person 4 (Harjas).
+base: default.yaml
+pilot:
+  n_problems: 200
+  source_split: test            # SPEC.md §7; B11.1 proposes "train" (team decides at CP0/CP2)
+  max_prefixes: 8
+  m_completions: 8
+  temperature: 0.7
+  sensitivity_subset: 50
+budget:
+  max_usd: 1.0

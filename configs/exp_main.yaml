@@ -1,0 +1,10 @@
+# Main experiments (SPEC.md §8). Runner: Person 4 (Harjas). TZ section: Person 1 (Prakhar).
+# Example:
+#   python scripts/run_experiment.py --config configs/exp_main.yaml \
+#       --set eval.methods=[tz] --set search.n_simulations=16 --run-id tz16_math500
+base: default.yaml
+eval:
+  dataset: math500
+  split: test
+  methods: [tz]
+  concurrency: 4
