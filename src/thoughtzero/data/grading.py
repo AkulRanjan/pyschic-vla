@@ -192,8 +192,8 @@ def _math_verify(pred: str, gold: str) -> bool:
 
     # Timeouts disabled here: math-verify uses signal.alarm (main-thread only,
     # unavailable on Windows). We enforce our own timeout around this call.
-    gold_p = parse(f"${gold}$", parsing_timeout=None)  # type: ignore[arg-type]
-    pred_p = parse(f"${pred}$", parsing_timeout=None)  # type: ignore[arg-type]
+    gold_p = parse(f"${gold}$", parsing_timeout=None)
+    pred_p = parse(f"${pred}$", parsing_timeout=None)
     if not gold_p or not pred_p:
         return False
     return bool(verify(gold_p, pred_p, timeout_seconds=None))

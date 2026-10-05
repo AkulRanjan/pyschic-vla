@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -14,7 +15,8 @@ from openai import AsyncOpenAI
 
 from thoughtzero import accounting
 from thoughtzero.accounting import Ledger
-from thoughtzero.llm.gemma import GeneratorConfig, OpenAICompatibleGenerator, _derive_seed
+from thoughtzero.config import GeneratorCfg, load_config
+from thoughtzero.llm.gemma import OpenAICompatibleGenerator, _derive_seed
 
 BASE = "http://gemma.test/v1"
 URL = f"{BASE}/completions"
@@ -56,15 +58,15 @@ def ledger() -> Iterator[Ledger]:
     accounting.current_ledger.reset(token)
 
 
-def make_gen(**overrides: Any) -> OpenAICompatibleGenerator:
-    cfg = GeneratorConfig(base_url=BASE, model="gemma", api_key="test", max_attempts=3)
-    cfg = cfg.model_copy(update=overrides)
+def make_gen(**kwargs: Any) -> OpenAICompatibleGenerator:
+    cfg = GeneratorCfg(base_url=BASE, model="gemma")
     # Recent openai SDKs default to their own httpx fork, which respx cannot
     # intercept; a plain httpx client is accepted and mockable.
     client = AsyncOpenAI(
         base_url=BASE, api_key="test", max_retries=0, http_client=httpx.AsyncClient()
     )
-    return OpenAICompatibleGenerator(cfg, WordTokenizer(), client=client)
+    kwargs.setdefault("max_attempts", 3)
+    return OpenAICompatibleGenerator(cfg, WordTokenizer(), client=client, **kwargs)
 
 
 @pytest.fixture
@@ -211,13 +213,23 @@ async def test_raw_completion_logprobs(gen: OpenAICompatibleGenerator, ledger: L
     route = respx.post(URL).mock(return_value=completion("Yes", logprobs=lp))
     r = await gen.raw_completion("Is it right? Answer:", max_tokens=1, logprobs=5)
 
-    assert r.text == "Yes"
-    assert r.top_logprobs == [{"Yes": -0.1, "No": -2.4}]
-    assert r.completion_tokens == 1
+    assert r["text"] == "Yes"
+    assert r["top_logprobs"] == [{"Yes": -0.1, "No": -2.4}]
+    assert r["completion_tokens"] == 1
     b = body(route.calls.last)
     assert b["prompt"] == "Is it right? Answer:"  # no template applied
     assert b["logprobs"] == 5 and b["max_tokens"] == 1
     assert ledger.gemma_calls == 1
+
+
+@respx.mock
+async def test_raw_completion_without_logprobs(
+    gen: OpenAICompatibleGenerator, ledger: Ledger
+) -> None:
+    route = respx.post(URL).mock(return_value=completion("No"))
+    r = await gen.raw_completion("Q:")
+    assert r["text"] == "No" and r["top_logprobs"] == []
+    assert "logprobs" not in body(route.calls.last)  # default None: not requested
 
 
 @respx.mock
@@ -237,8 +249,19 @@ def test_seed_depends_on_prompt_not_call_order() -> None:
     assert 0 <= _derive_seed(0, "abc", 0) < 2**31
 
 
-def test_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_from_config_uses_seed_and_search_max_depth(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GEMMA_BASE_URL", "http://x:1/v1")
     monkeypatch.setenv("GEMMA_MODEL", "gemma4:e4b")
-    cfg = GeneratorConfig.from_env(max_step_tokens=96)
-    assert (cfg.base_url, cfg.model, cfg.max_step_tokens) == ("http://x:1/v1", "gemma4:e4b", 96)
+    cfg = load_config(
+        Path(__file__).parents[1] / "configs" / "default.yaml",
+        ["seed=7", "search.max_depth=12", "generator.max_step_tokens=96"],
+    )
+    g = OpenAICompatibleGenerator.from_config(cfg, WordTokenizer())
+    assert (g.cfg.base_url, g.cfg.model, g.cfg.max_step_tokens) == (
+        "http://x:1/v1",
+        "gemma4:e4b",
+        96,
+    )
+    assert (g.seed, g.max_depth) == (7, 12)
+    # explicit kwargs win over the config
+    assert OpenAICompatibleGenerator.from_config(cfg, WordTokenizer(), seed=None).seed is None

@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from thoughtzero.baselines import best_of_n, cot, self_consistency
-from thoughtzero.baselines.self_consistency import SCSamples, majority_vote
+from thoughtzero.baselines import best_of_n, self_consistency
+from thoughtzero.baselines.best_of_n import BestOfN
+from thoughtzero.baselines.cot import ChainOfThought
+from thoughtzero.baselines.self_consistency import SCSamples, SelfConsistency, majority_vote
+from thoughtzero.eval.runner import Method
 from thoughtzero.types import GenOut, Problem
 
 PROBLEM = Problem(id="t/1", question="What is 2+2?", answer="4", source="test")
@@ -66,6 +69,16 @@ def words(text: str) -> int:
     return len(text.split())
 
 
+def test_classes_satisfy_method_protocol() -> None:
+    gen = ScriptedGenerator([])
+    methods: list[Method] = [
+        ChainOfThought(gen),
+        SelfConsistency(gen, n=4, count_tokens=words),
+        BestOfN(ScoreJudge({}), n=4, generator=gen, count_tokens=words),
+    ]
+    assert [m.name for m in methods] == ["cot", "self_consistency", "best_of_n"]
+
+
 # -------------------------------------------------------------------- voting
 
 
@@ -94,15 +107,15 @@ def test_majority_vote_ignores_none_and_empty() -> None:
 
 async def test_cot_is_greedy_single_sample() -> None:
     gen = ScriptedGenerator([sol("4")])
-    out = await cot.run_cot(gen, PROBLEM, where="vllm-local/fp16")
+    res = await ChainOfThought(gen, where="vllm-local/fp16", name="ceiling_31b").solve(PROBLEM)
     assert gen.calls == [(1, 0.0)]
-    assert out.answer == "4"
-    assert out.extra == {"where": "vllm-local/fp16"}
+    assert res.answer == "4"
+    assert res.raw == {"solution": sol("4"), "where": "vllm-local/fp16"}
 
 
 async def test_cot_no_answer() -> None:
-    out = await cot.run_cot(ScriptedGenerator(["Step 1: I give up."]), PROBLEM)
-    assert out.answer is None
+    res = await ChainOfThought(ScriptedGenerator(["Step 1: I give up."])).solve(PROBLEM)
+    assert res.answer is None
 
 
 # ---------------------------------------------------------------------- B2
@@ -122,6 +135,24 @@ async def test_self_consistency_batches_and_counts_tokens() -> None:
     assert s.completion_tokens == [words(x.removeprefix("Step 1:")) for x in sols]
 
 
+async def test_self_consistency_method_votes_at_n_but_stores_n_max() -> None:
+    sols = [sol(a) for a in ["4", "5", "4", "5", "5"]]
+    m = SelfConsistency(ScriptedGenerator(sols), n=3, n_max=5, count_tokens=words)
+    res = await m.solve(PROBLEM)
+
+    assert res.answer == "4"  # vote over the first 3
+    assert res.raw["n"] == 3
+    assert len(res.raw["solutions"]) == 5  # all samples kept for the post-hoc curve
+    stored = SCSamples.from_raw(res.raw)
+    assert stored.vote(5) == "5"
+    assert res.raw["completion_tokens_at_n"] == stored.tokens(3)
+
+
+def test_self_consistency_rejects_n_max_below_n() -> None:
+    with pytest.raises(ValueError):
+        SelfConsistency(ScriptedGenerator([]), n=4, n_max=2, count_tokens=words)
+
+
 def test_prefix_subsampling_curve() -> None:
     s = SCSamples(
         solutions=["a", "b", "c", "d", "e"],
@@ -138,30 +169,43 @@ def test_prefix_subsampling_curve() -> None:
         s.vote(6)
 
 
-def test_sc_output_records_details() -> None:
-    s = SCSamples(solutions=["a", "b"], answers=["1", "1"], completion_tokens=[3, 4])
-    out = s.output(2)
-    assert out.answer == "1"
-    assert out.extra["completion_tokens"] == 7
-    assert out.extra["answers"] == ["1", "1"]
+def test_sc_samples_roundtrip_raw() -> None:
+    s = SCSamples(solutions=["a"], answers=[None], completion_tokens=[3], temperature=0.5)
+    assert SCSamples.from_raw(s.to_raw()) == s
 
 
 # ---------------------------------------------------------------------- B3
 
 
-async def test_best_of_n_picks_highest_judge_score() -> None:
+async def test_best_of_n_picks_highest_judge_score_from_stored_samples() -> None:
     samples = SCSamples(
         solutions=[sol("5"), sol("4"), sol("5")],
         answers=["5", "4", "5"],
         completion_tokens=[1, 1, 1],
     )
     judge = ScoreJudge({"4": 0.9, "5": 0.2})
-    out = await best_of_n.run_best_of_n(judge, PROBLEM, samples)
+    res = await BestOfN(judge, n=3, stored={PROBLEM.id: samples}).solve(PROBLEM)
 
-    assert out.answer == "4"  # the minority answer wins on judge score
-    assert out.extra["picked"] == 1
+    assert res.answer == "4"  # the minority answer wins on judge score
+    assert res.raw["picked"] == 1
+    assert res.raw["reused_samples"] is True
     assert len(judge.seen) == 3
     assert judge.seen[0] == ["Think.", "So \\boxed{5}"]  # judged as split steps
+
+
+async def test_best_of_n_samples_fresh_when_not_stored() -> None:
+    gen = ScriptedGenerator([sol("5"), sol("4")])
+    res = await BestOfN(ScoreJudge({"4": 0.9}), n=2, generator=gen, count_tokens=words).solve(
+        PROBLEM
+    )
+    assert res.answer == "4"
+    assert res.raw["reused_samples"] is False
+    assert gen.calls == [(2, 0.7)]
+
+
+def test_best_of_n_needs_samples_or_generator() -> None:
+    with pytest.raises(ValueError):
+        BestOfN(ScoreJudge({}), n=2)
 
 
 def test_pick_best_ties_and_prefix() -> None:

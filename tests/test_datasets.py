@@ -139,3 +139,9 @@ def test_ablation_and_dev_use_different_seeds(math500: list[Problem]) -> None:
     dev = ds.dev_subset(n=20, problems=math500)
     abl = ds.ablation_subset(n=20, problems=math500)
     assert dev != abl
+
+
+def test_pilot_subset_split_matches_pilot_cfg() -> None:
+    # PilotCfg.source_split is "test" (MATH-500, per spec) or "train" (B11.1 proposal).
+    with pytest.raises(ValueError):
+        ds.pilot_subset(n=5, split="validation")

@@ -22,7 +22,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
-from typing import Any, Literal
+from typing import Any
 
 from thoughtzero.data.grading import extract_answer
 from thoughtzero.types import Problem
@@ -245,16 +245,19 @@ def dev_subset(
 def pilot_subset(
     n: int = 200,
     seed: int = 0,
-    source: Literal["math500", "math_train"] = "math500",
+    split: str = "test",
     problems: Sequence[Problem] | None = None,
 ) -> list[Problem]:
     """The 200-problem pilot set, stratified by level (spec §7).
 
-    ``source="math500"`` follows the spec. ``"math_train"`` is open decision
-    B11.1 (avoid test leakage); switch only once the team agrees.
+    ``split`` matches ``PilotCfg.source_split``. ``"test"`` (MATH-500) follows
+    the spec. ``"train"`` (Hendrycks MATH train) is open decision B11.1 (avoid
+    test leakage); switch only once the team agrees.
     """
+    if split not in ("test", "train"):
+        raise ValueError(f"split must be 'test' or 'train', got {split!r}")
     if problems is None:
-        problems = load_math500() if source == "math500" else load_math_train()
+        problems = load_math500() if split == "test" else load_math_train()
     return stratified_subset(problems, n, seed)
 
 

@@ -37,11 +37,12 @@ GEMMA_MODEL=google/gemma-4-E4B-it
 ## Running against the server
 
 ```python
-from thoughtzero.llm.gemma import GeneratorConfig, OpenAICompatibleGenerator
-from thoughtzero.llm.tokenize import HFChatTokenizer
+from thoughtzero.config import load_config
+from thoughtzero.llm.gemma import OpenAICompatibleGenerator
 
-cfg = GeneratorConfig.from_env()
-gen = OpenAICompatibleGenerator(cfg, HFChatTokenizer("google/gemma-4-E4B-it"))
+cfg = load_config("configs/default.yaml")  # generator.base_url / model come from .env
+# tokenizer_name is needed when generator.model is a quantized checkpoint or an Ollama tag
+gen = OpenAICompatibleGenerator.from_config(cfg, tokenizer_name="google/gemma-4-E4B-it")
 ```
 
 ## Throughput (TODO: measure on day 1–2)

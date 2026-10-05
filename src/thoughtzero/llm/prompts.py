@@ -1,6 +1,6 @@
 """All prompt templates and the step format (spec §5.2, team file §A4.1).
 
-File owner: Person 3. Person 2 edits only the JUDGE SECTION at the bottom.
+File owner: Person 3 (Akul). Person 2 (Jagriti) edits only the JUDGE SECTION at the bottom.
 Every change to prompt *text* must bump ``PROMPT_VERSION``: it goes into cache
 keys and logs.
 
@@ -163,7 +163,20 @@ def generator_prompt(
     return head + format_steps(steps) + step_header(len(steps) + 1)
 
 
-# === JUDGE SECTION (owner: Person 2) ===
-# Judge state formatting and question instructions go here (spec §5.3).
-# Bump PROMPT_VERSION on any text change.
-# === END JUDGE SECTION ===
+# === JUDGE SECTION (owner: Person 2 (Jagriti)) ===========================================
+# Draft texts from SPEC.md §5.3; tune in Phase 1 (on the train split only).
+
+SOUND_INSTRUCTION = (
+    "Is every step in SOLUTION SO FAR mathematically correct and logically valid? "
+    "Ignore whether the solution is finished."
+)
+NEXT_INSTRUCTION = "Which candidate next step is most likely to lead to a correct final answer?"
+FINAL_INSTRUCTION = "Is the final answer of this solution correct?"
+
+# Three phrasings for the pilot's prompt-sensitivity check; the first must equal the main one.
+SOUND_VARIANTS: list[str] = [SOUND_INSTRUCTION]
+
+
+def judge_state(problem: str, steps: list[str]) -> str:
+    """``PROBLEM:\\n...\\n\\nSOLUTION SO FAR:\\nStep 1: ...`` (SPEC.md §5.3)."""
+    raise NotImplementedError("Person 2 (Jagriti)")

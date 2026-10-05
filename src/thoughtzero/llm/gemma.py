@@ -17,12 +17,11 @@ import hashlib
 import logging
 import os
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import openai
 from openai import AsyncOpenAI
-from pydantic import BaseModel, Field
 from tenacity import (
     AsyncRetrying,
     retry_if_exception,
@@ -31,6 +30,7 @@ from tenacity import (
 )
 
 from thoughtzero import accounting
+from thoughtzero.config import Config, GeneratorCfg
 from thoughtzero.data.grading import has_final_answer
 from thoughtzero.llm.prompts import (
     generator_prompt,
@@ -38,57 +38,16 @@ from thoughtzero.llm.prompts import (
     step_header,
     truncate_at_next_step,
 )
-from thoughtzero.llm.tokenize import ChatTokenizer
+from thoughtzero.llm.tokenize import ChatTokenizer, HFChatTokenizer
 from thoughtzero.types import GenOut
 
 log = logging.getLogger(__name__)
 
 # Markup that would mean thinking mode leaked into the output (spec §5.2).
-# VERIFY against the Gemma 4 chat template; see docs/verified_apis.md.
-THINKING_MARKERS: tuple[str, ...] = ("<think>", "</think>", "<|think|>", "<|channel>", "<channel|>")
-
-
-class GeneratorConfig(BaseModel):
-    """The ``generator`` config section (spec §6.4).
-
-    Lives here until Person 1's ``config.py`` exists; then it moves there by PR.
-    """
-
-    base_url: str = "http://localhost:8000/v1"
-    model: str = "google/gemma-4-E4B-it"
-    api_key: str | None = None  # None -> env GEMMA_API_KEY -> "EMPTY"
-    temperature: float = 0.9
-    top_p: float = 0.95
-    max_step_tokens: int = 256
-    stop: list[str] = Field(default_factory=lambda: ["\n\nStep", "\n\n\n"])
-    max_solution_tokens: int = 2048
-    solution_stop: list[str] = Field(default_factory=list)  # full solutions end at EOS
-    max_depth: int = 20
-    seed: int | None = 0
-    max_concurrency: int = 32
-    max_attempts: int = 5
-    request_timeout_s: float = 300.0
-    use_system_role: bool = True
-
-    @classmethod
-    def from_env(cls, **overrides: Any) -> GeneratorConfig:
-        """Defaults, then ``GEMMA_BASE_URL`` / ``GEMMA_MODEL`` from the env, then overrides."""
-        env: dict[str, Any] = {}
-        if url := os.environ.get("GEMMA_BASE_URL"):
-            env["base_url"] = url
-        if model := os.environ.get("GEMMA_MODEL"):
-            env["model"] = model
-        return cls(**{**env, **overrides})
-
-
-@dataclass
-class RawCompletion:
-    """One-choice result of :meth:`OpenAICompatibleGenerator.raw_completion`."""
-
-    text: str
-    top_logprobs: list[dict[str, float]] = field(default_factory=list)  # one dict per token
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
+# Gemma 4 wraps thoughts in "<|channel>thought ... <channel|>" and turns
+# thinking on with "<|think|>" (from its chat template; docs/verified_apis.md).
+# "<think>" covers other model families served by mistake.
+THINKING_MARKERS: tuple[str, ...] = ("<|channel>", "<channel|>", "<|think|>", "<think>")
 
 
 @dataclass
@@ -121,23 +80,62 @@ def _derive_seed(base: int, prompt: str, attempt: int) -> int:
 
 
 class OpenAICompatibleGenerator:
-    """Implements the ``Generator`` protocol (``thoughtzero.types``)."""
+    """Implements the ``Generator`` protocol (``thoughtzero.types``).
+
+    ``cfg`` is the ``generator`` config section. Settings that ``GeneratorCfg``
+    doesn't have (yet) are keyword arguments; :meth:`from_config` fills them
+    from the full ``Config`` (``seed``, ``search.max_depth``).
+
+    - ``tokenizer``: defaults to ``HFChatTokenizer(tokenizer_name or cfg.model)``.
+      Pass ``tokenizer_name`` when ``cfg.model`` isn't an HF ID (e.g. an Ollama
+      tag) or is a quantized checkpoint.
+    - ``seed``: base for per-request seeds (None disables seeding).
+    - ``max_depth``: full solutions are capped at this many steps (spec §6.2).
+    - ``use_system_role``: Gemma 4's template has a system turn (verified).
+    - ``solution_stop``: stop strings for full solutions; by default they end at EOS.
+    - The API key comes from the environment (``GEMMA_API_KEY``), never the config.
+    """
 
     def __init__(
         self,
-        cfg: GeneratorConfig,
-        tokenizer: ChatTokenizer,
+        cfg: GeneratorCfg,
+        tokenizer: ChatTokenizer | None = None,
         client: AsyncOpenAI | None = None,
+        *,
+        tokenizer_name: str | None = None,
+        seed: int | None = 0,
+        max_depth: int = 20,
+        use_system_role: bool = True,
+        solution_stop: Sequence[str] = (),
+        max_attempts: int = 5,
+        request_timeout_s: float = 300.0,
     ) -> None:
         self.cfg = cfg
-        self.tokenizer = tokenizer
+        self.tokenizer: ChatTokenizer = tokenizer or HFChatTokenizer(tokenizer_name or cfg.model)
+        self.seed = seed
+        self.max_depth = max_depth
+        self.use_system_role = use_system_role
+        self.solution_stop = list(solution_stop)
+        self.max_attempts = max_attempts
         self.client = client or AsyncOpenAI(
             base_url=cfg.base_url,
-            api_key=cfg.api_key or os.environ.get("GEMMA_API_KEY") or "EMPTY",
+            api_key=os.environ.get("GEMMA_API_KEY") or "EMPTY",
             max_retries=0,  # tenacity handles retries
-            timeout=cfg.request_timeout_s,
+            timeout=request_timeout_s,
         )
         self._sem = asyncio.Semaphore(cfg.max_concurrency)
+
+    @classmethod
+    def from_config(
+        cls,
+        config: Config,
+        tokenizer: ChatTokenizer | None = None,
+        **kwargs: Any,
+    ) -> OpenAICompatibleGenerator:
+        """Build from the full config: ``generator`` section, ``seed``, ``search.max_depth``."""
+        kwargs.setdefault("seed", config.seed)
+        kwargs.setdefault("max_depth", config.search.max_depth)
+        return cls(config.generator, tokenizer, **kwargs)
 
     # ------------------------------------------------------------------ helpers
 
@@ -145,12 +143,12 @@ class OpenAICompatibleGenerator:
         return self.tokenizer.count_tokens(text)
 
     def _prompt(self, problem: str, steps: Sequence[str]) -> str:
-        return generator_prompt(problem, steps, self.tokenizer, self.cfg.use_system_role)
+        return generator_prompt(problem, steps, self.tokenizer, self.use_system_role)
 
     async def _create(self, **kwargs: Any) -> Any:
         async with self._sem:
             async for attempt in AsyncRetrying(
-                stop=stop_after_attempt(self.cfg.max_attempts),
+                stop=stop_after_attempt(self.max_attempts),
                 wait=wait_exponential(multiplier=0.5, max=20),
                 retry=retry_if_exception(_is_retryable),
                 reraise=True,
@@ -179,8 +177,8 @@ class OpenAICompatibleGenerator:
             kwargs["top_p"] = self.cfg.top_p
         if stop:
             kwargs["stop"] = stop
-        if self.cfg.seed is not None:
-            kwargs["seed"] = _derive_seed(self.cfg.seed, prompt, attempt)
+        if self.seed is not None:
+            kwargs["seed"] = _derive_seed(self.seed, prompt, attempt)
 
         resp = await self._create(**kwargs)
         choices = sorted(resp.choices, key=lambda c: c.index)
@@ -208,7 +206,7 @@ class OpenAICompatibleGenerator:
             if has_final_answer(s):
                 new = new[: i + 1]
                 break
-        return new[: max(0, self.cfg.max_depth - n_existing)]
+        return new[: max(0, self.max_depth - n_existing)]
 
     # ---------------------------------------------------------------- protocol
 
@@ -247,14 +245,14 @@ class OpenAICompatibleGenerator:
         self, problem: str, steps: list[str], n: int, temperature: float
     ) -> list[list[str]]:
         """``n`` independent completions of the prefix in one request; NEW steps only."""
-        if len(steps) >= self.cfg.max_depth:
+        if len(steps) >= self.max_depth:
             return [[] for _ in range(n)]
         s = await self._sample(
             self._prompt(problem, steps),
             n=n,
             temperature=temperature,
             max_tokens=self.cfg.max_solution_tokens,
-            stop=self.cfg.solution_stop,
+            stop=self.solution_stop,
         )
         return [self._new_steps(len(steps), t) for t in s.texts]
 
@@ -268,7 +266,7 @@ class OpenAICompatibleGenerator:
             n=n,
             temperature=temperature,
             max_tokens=self.cfg.max_solution_tokens,
-            stop=self.cfg.solution_stop,
+            stop=self.solution_stop,
         )
         return [step_header(1) + t for t in s.texts]
 
@@ -278,18 +276,30 @@ class OpenAICompatibleGenerator:
         self,
         prompt: str,
         max_tokens: int = 1,
-        logprobs: int = 5,
+        logprobs: int | None = None,
         temperature: float = 0.0,
-    ) -> RawCompletion:
-        """A raw prompt (no template applied) with top-k logprobs, for Person 2's self-judge."""
-        resp = await self._create(
-            model=self.cfg.model,
-            prompt=prompt,
-            n=1,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            logprobs=logprobs,
-        )
+    ) -> dict[str, object]:
+        """Raw completions call (with logprobs) for Person 2 (Jagriti)'s GemmaSelfJudge.
+
+        ``prompt`` is sent as-is (no chat template). Returns::
+
+            {"text": str,
+             "top_logprobs": list[dict[str, float]],  # one {token: logprob} per output token;
+                                                      # empty unless ``logprobs`` is set
+             "prompt_tokens": int, "completion_tokens": int}
+
+        The server caps ``logprobs`` (vLLM: ``--max-logprobs``, default 20).
+        """
+        kwargs: dict[str, Any] = {
+            "model": self.cfg.model,
+            "prompt": prompt,
+            "n": 1,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        if logprobs is not None:
+            kwargs["logprobs"] = logprobs
+        resp = await self._create(**kwargs)
         choice = resp.choices[0]
         text = choice.text or ""
         top: list[dict[str, float]] = []
@@ -302,4 +312,9 @@ class OpenAICompatibleGenerator:
             else self.tokenizer.count_tokens(text)
         )
         accounting.record_gemma(prompt_tokens, completion_tokens)
-        return RawCompletion(text, top, prompt_tokens, completion_tokens)
+        return {
+            "text": text,
+            "top_logprobs": top,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+        }

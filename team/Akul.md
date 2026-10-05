@@ -262,32 +262,40 @@ Person 1 writes these on days 1–2 in `src/thoughtzero/types.py` (and `accounti
 from dataclasses import dataclass, field
 from typing import Protocol
 
+
 @dataclass(frozen=True)
 class Problem:
-    id: str                 # stable, e.g. "math500/test/precalculus/807"
+    id: str  # stable, e.g. "math500/test/precalculus/807"
     question: str
-    answer: str             # ground truth; ONLY used for grading, never inside search
-    source: str             # "math500" | "aime2025" | ...
-    level: int | None = None    # MATH difficulty 1-5 (for stratification)
+    answer: str  # ground truth; ONLY used for grading, never inside search
+    source: str  # "math500" | "aime2025" | ...
+    level: int | None = None  # MATH difficulty 1-5 (for stratification)
     subject: str | None = None
+
 
 @dataclass
 class GenOut:
-    text: str               # step text, stripped, WITHOUT the "Step n:" prefix
+    text: str  # step text, stripped, WITHOUT the "Step n:" prefix
     prompt_tokens: int
     completion_tokens: int
 
+
 class Generator(Protocol):
     async def propose(self, problem: str, steps: list[str], k: int) -> list[GenOut]: ...
-    async def complete(self, problem: str, steps: list[str], temperature: float = 0.0) -> list[str]: ...
+    async def complete(
+        self, problem: str, steps: list[str], temperature: float = 0.0
+    ) -> list[str]: ...
     async def sample_solutions(self, problem: str, n: int, temperature: float) -> list[str]: ...
     # ADDITION to the spec (needed by the pilot's Monte Carlo labels, one batched n=m request):
-    async def sample_completions(self, problem: str, steps: list[str], n: int,
-                                 temperature: float) -> list[list[str]]: ...
+    async def sample_completions(
+        self, problem: str, steps: list[str], n: int, temperature: float
+    ) -> list[list[str]]: ...
+
 
 class Judge(Protocol):
-    async def prior_and_value(self, problem: str, steps: list[str],
-                              candidates: list[str]) -> tuple[list[float], float]: ...
+    async def prior_and_value(
+        self, problem: str, steps: list[str], candidates: list[str]
+    ) -> tuple[list[float], float]: ...
     async def final_correct(self, problem: str, steps: list[str]) -> float: ...
     async def step_sound(self, problem: str, steps: list[str]) -> float: ...
 ```
@@ -306,7 +314,7 @@ class Judge(Protocol):
    @dataclass
    class Ledger:
        gemma_prompt_tokens: int = 0
-       gemma_completion_tokens: int = 0     # PRIMARY compute axis
+       gemma_completion_tokens: int = 0  # PRIMARY compute axis
        gemma_calls: int = 0
        jev_calls: int = 0
        jev_cache_hits: int = 0
@@ -317,7 +325,10 @@ class Judge(Protocol):
        max_depth: int = 0
        terminal_leaves: int = 0
 
-   current_ledger: ContextVar[Ledger]           # set by eval/runner.py per problem
+
+   current_ledger: ContextVar[Ledger]  # set by eval/runner.py per problem
+
+
    def record_gemma(prompt_tokens: int, completion_tokens: int) -> None: ...
    def record_jev(input_tokens: int, usd: float, cache_hit: bool) -> None: ...
    ```
@@ -346,7 +357,7 @@ class Judge(Protocol):
 
 **One-time setup**
 ```bash
-git clone <repo-url> thoughtzero && cd thoughtzero
+git clone https://github.com/AkulRanjan/pyschic-vla.git && cd pyschic-vla
 git config core.autocrlf input        # Windows users: avoids CRLF diffs
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
@@ -404,7 +415,7 @@ pre-commit install                    # if configured: runs ruff on commit
 
 Each of you can use Claude Code in the repo. Start every session with:
 
-> "Read `SPEC.md`, `CLAUDE.md` and `team/PERSON_<N>.md`. I am Person N. Only edit files I own (§B2); for anything else, tell me what change to request from its owner."
+> "Read `SPEC.md`, `CLAUDE.md` and `team/<YourName>.md`. I am Person N. Only edit files I own (§B2); for anything else, tell me what change to request from its owner."
 
 Rules from spec §13 apply to everyone and to Claude:
 - no paid API calls in tests;
