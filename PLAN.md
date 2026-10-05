@@ -41,12 +41,13 @@ that needs them. Write each decision down in `results/DECISIONS.md` with its dat
 |---|---|---|---|
 | D1 | **Pilot split:** MATH-500 (`test`, as the spec says) or MATH **train** (`pilot.source_split=train`)? Tuning prompts on MATH-500 leaks into the main results. | S2 | **Train.** Keep MATH-500 untouched until S6. |
 | D2 | **Which Jev route.** All of direct (waitlist), OpenRouter (beta), OpenCode Zen and Vercel serve TypeSafe's jev-1.13. Bocha and the local stand-in are other models: development only. | S1 | Whichever key you can get first among the four TypeSafe routes; OpenCode Zen and OpenRouter need no waitlist. Use one route for all results. |
-| D3 | **Jev budget.** The default cap is `budget.max_usd=5`. Upper-bound estimate for everything (runner's 2,000 tokens/call, no cache): TZ sweep on MATH-500 ~$5.0, AIME ~$0.9, best-of-N ~$2.7, ablations ~$4.3, pilot ~$0.2, so ~$13. Real cost should be well below that: states are shorter than 2,000 tokens, and the seeded generator makes the n=8/16/32 trees largely repeat the n=64 tree's expansions, which then hit the cache. | S6 | Measure tokens/call in S4, re-estimate, then raise the cap or trim the sweep. |
+| D3 | **Jev budget.** Real calls on short states cost ~430 input tokens (~$0.000018), not the runner's assumed 2,000, so the estimates below are likely 2–4x too high. The default cap is `budget.max_usd=5`. Upper-bound estimate for everything (runner's 2,000 tokens/call, no cache): TZ sweep on MATH-500 ~$5.0, AIME ~$0.9, best-of-N ~$2.7, ablations ~$4.3, pilot ~$0.2, so ~$13. Real cost should be well below that: states are shorter than 2,000 tokens, and the seeded generator makes the n=8/16/32 trees largely repeat the n=64 tree's expansions, which then hit the cache. | S6 | Measure tokens/call in S4, re-estimate, then raise the cap or trim the sweep. |
 | D4 | **`parallel_sims`** (default 8). On the toy task, 32 simulations with 8 in parallel loses accuracy with `most_visited`; parallelism trades quality for wall-clock time. | S4 | Measure on the 50-problem dev run (1 vs 4 vs 8) and fix it before S6. |
 | D5 | **Spec §6.2 deviation (already merged):** a simulation that waits on a leaf being expanded keeps descending, instead of re-backing-up that leaf. | now | Keep; record it in the Method section of the report. |
 | D6 | **Option shuffling** (`judge.shuffle_options`): TypeSafe's own docs say jev-1.13 can lean toward the first option. | S2 | Measure the bias in the pilot; expect to turn shuffling on. |
 | D7 | **PRM baseline (B5):** `Qwen/Qwen2.5-Math-PRM-7B` is ~15 GB in bf16 (above the 5 GB "ask first" line, and too big for one T4 next to Gemma). | S3 | Optional per spec. Skip it unless a bigger GPU is available, and say so in the report. |
 | D8 | **Jev and arithmetic.** TypeSafe's docs: *"Jev is not a calculator"*; jev-1.13 *"struggles with tasks that require numeric precision"*. Judging maths steps leans on exactly that. | S2 | Nothing to decide yet; the pilot answers it. Keep it in mind if AUROC is low, and cite it in the report. |
+| D9 | **Zero priors.** Real Jev returns choice probabilities rounded to 2 decimals, with exact 0 for options it rules out; PUCT then never explores those children, even when Jev is wrong (seen: it gave 0 to the step that catches an arithmetic slip). The spec only fills *missing* options with an epsilon. | S2 | Add a prior floor (e.g. mix 5% uniform into every prior) as a config flag, and compare it with the spec version (no floor) in the pilot or S4. |
 
 ---
 
@@ -55,7 +56,7 @@ that needs them. Write each decision down in `results/DECISIONS.md` with its dat
 The order matters: S0 starts the slow external processes, and S3 is offline work to do
 **while waiting** for them.
 
-### S0. Unblock access (day 1) — in progress
+### S0. Unblock access (day 1) — Jev done; Kaggle left
 
 Done (2026-10-05):
 - Jev client for every route that serves real jev-1.13, built from the official API
@@ -65,8 +66,12 @@ Done (2026-10-05):
 - Real `smoke_test.py` path; Kaggle notebook passes the route and its key from Kaggle secrets.
 - GPU decision: Kaggle T4 (the laptop's 6 GB GPU can't hold Gemma E4B).
 
+Also done: OpenRouter key in `.env` (`JEV_TRANSPORT=openrouter`); `probe_jev.py` passed
+(answered by `typesafe/jev-1.13-20260917`), and 17 more calls measured latency (p50 406 ms)
+and ~430 input tokens per call on short states (`docs/verified_apis.md`).
+
 Your steps:
-1. **Get one Jev key**: OpenRouter (`OPENROUTER_API_KEY`, route `openrouter`) or OpenCode Zen
+1. ~~**Get one Jev key**~~ (done: OpenRouter): OpenRouter (`OPENROUTER_API_KEY`, route `openrouter`) or OpenCode Zen
    (`OPENCODE_ZEN_API_KEY`, route `zen`) need no waitlist; also join the TypeSafe waitlist
    (`TYPESAFE_API_KEY`, route `direct`, the official endpoint). Put the key and
    `JEV_TRANSPORT=<route>` in `.env`.

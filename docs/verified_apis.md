@@ -14,21 +14,22 @@ Checked **2026-10-05** against the official docs (<https://docs.typesafe.ai/api.
 client: [jev-chat/jev-chat-jarvis](https://github.com/jev-chat/jev-chat-jarvis) (MIT; `tools/jev/jev_client.py`,
 `app/.../jev/JudgeClient.kt`, `core/Prefs.kt`), an Android app that calls Jev in production
 over several routes. Code: `judge/client.py` (`PROVIDERS`), `judge/jev.py`; offline tests in
-`tests/test_jev_client.py`. **No real response is recorded yet**: run
-`python scripts/probe_jev.py --record` once a key is in `.env`, and update the ⚠️ rows below.
+`tests/test_jev_client.py`. **Real responses checked 2026-10-05 via OpenRouter** (18 calls,
+$0.0003); one is recorded in `tests/fixtures/jev/real_openrouter.json` and replayed in
+`tests/test_jev_client.py`.
 
 | # | Question | Answer | Source (link) | Checked | Status |
 |---|---|---|---|---|---|
 | J1 | Does `choice` return a probability for **every** option? (**critical**) | **Yes.** The answer has `choice`, `probabilities` (every option, sums to 1) and `confidence`. `prior_mode=choice` stays the default. | [api.md, Choice answer](https://docs.typesafe.ai/api.md) | 2026-10-05 | ✅ |
 | J2 | Request fields | `POST`, `Authorization: Bearer <key>`, JSON body `{"model", "state", "questions"}`. `questions` is a map id → `{"type": "noul" \| "choice" \| "score", "instructions", "criteria"}`. **Choice options go in `criteria`** (map option → description, 2..255 options); noul `criteria` is optional `{"true", "false"}`. `state` may be a string or JSON. | [api.md](https://docs.typesafe.ai/api.md); jarvis `JudgeClient.kt` | 2026-10-05 | ✅ |
 | J3 | Response shape | `{"model": "jev-1.13.0", "answers": {id: answer}, "usage": {"input_tokens", "output_tokens"}}`. Noul answer `{"type": "noul", "noul": p}`; choice answer as in J1. | [api.md, Response body](https://docs.typesafe.ai/api.md) | 2026-10-05 | ✅ |
-| J4 | Is usage reported? | **Yes** on the direct API (`usage.input_tokens`); `JevJudge` bills that, and falls back to chars/4 if a gateway omits it. | [api.md](https://docs.typesafe.ai/api.md) | 2026-10-05 | ⚠️ gateways unconfirmed |
-| J5 | Version pinning | `jev-1.13.0` is accepted on the direct API (`jev-latest` / `jev-preview` are moving aliases; the response's `model` reports the version). Gateways use their own names (`typesafe/jev-1.13`, `jev-1.13`, `typesafe-ai/jev`); whether these pin a version is unconfirmed. The response `model` is stored in the cache. | [models.md](https://docs.typesafe.ai/models.md) | 2026-10-05 | ⚠️ gateways |
-| J6 | OpenRouter shape | Not a chat wrapper: `POST https://openrouter.ai/api/alpha/decisions` with the same `{"model", "state", "questions"}` body and an `answers` map back. | jarvis `jev_client.py`, `Prefs.kt` | 2026-10-05 | ⚠️ third-party code only |
+| J4 | Is usage reported? | **Yes**: `usage.input_tokens` on the direct API (docs) and on OpenRouter (seen: 470 tokens for the probe; ~430 per call on short maths states). `JevJudge` bills it, falling back to chars/4 if a route omits it. | [api.md](https://docs.typesafe.ai/api.md); `real_openrouter.json` | 2026-10-05 | ✅ (direct, openrouter) |
+| J5 | Version pinning | `jev-1.13.0` is accepted on the direct API (`jev-latest` / `jev-preview` are moving aliases; the response's `model` reports the version). OpenRouter's `typesafe/jev-1.13` answered as **`typesafe/jev-1.13-20260917`**, a dated snapshot: log it, and treat a new date as a new model. Zen / Vercel names unconfirmed. The response `model` is stored in the cache. | [models.md](https://docs.typesafe.ai/models.md); `real_openrouter.json` | 2026-10-05 | ✅ direct, openrouter |
+| J6 | OpenRouter shape | Not a chat wrapper: `POST https://openrouter.ai/api/alpha/decisions` with the same `{"model", "state", "questions"}` body; the response is the documented `{model, answers, usage}`. | jarvis `jev_client.py`; real response `real_openrouter.json` | 2026-10-05 | ✅ |
 | J7 | Rate limits | 100K tokens/s and 80 requests/s per account (direct; "adjusting dynamically"). `429` = rate limit, `529` = overloaded: both retried with exponential backoff; `401` / `422` fail fast. | [models.md](https://docs.typesafe.ai/models.md), [api.md Errors](https://docs.typesafe.ai/api.md) | 2026-10-05 | ✅ |
 | J8 | Limits | Choice: 2..255 options (a single surviving candidate gets prior 1 with no question). Context: 64k tokens per request; 32k for `state` + the longest question (`judge.max_state_tokens=28000` leaves room). Text only. | [api.md](https://docs.typesafe.ai/api.md), [models.md](https://docs.typesafe.ai/models.md) | 2026-10-05 | ✅ |
 | J9 | SDK or raw HTTP? | Raw HTTP (`httpx`): the protocol is one POST, and the official `typesafe_sdk` adds a dependency without changing anything we need. | [sdk/python.md](https://docs.typesafe.ai/sdk/python.md) | 2026-10-05 | ✅ |
-| J10 | Latency p50 / p95 | Not measured yet (needs a key; `probe_jev.py` prints the latency of one call). | — | — | ⬜ |
+| J10 | Latency p50 / p95 | OpenRouter, from a laptop in India, 17 sequential calls: **p50 406 ms, p95 453 ms, max 625 ms** (first call on a cold connection ~1.6 s). Slower than the docs' 50–100 ms; concurrency hides it. | measured with a scratch script | 2026-10-05 | ✅ |
 | J11 | Terms of service: may benchmark results be published? | Not in the docs; the docs link to the [Master Customer Agreement](https://typesafe.ai/legal/mca). **Prakhar to read before publishing anything.** | [legal.md](https://docs.typesafe.ai/legal.md) | — | ⬜ |
 | J12 | Price | $0.042 per million input tokens; output free (`judge.usd_per_mtok=0.042`). | [models.md](https://docs.typesafe.ai/models.md) | 2026-10-05 | ✅ |
 
@@ -45,6 +46,16 @@ over several routes. Code: `judge/client.py` (`PROVIDERS`), `judge/jev.py`; offl
 
 `judge.jev_model` / `judge.jev_url` override a route's model or URL. The cache key includes
 the model, so different models never share cached answers.
+
+**Observed on real responses (2026-10-05, OpenRouter):**
+- Probabilities come back **rounded to 2 decimals**, and options Jev rules out get **exactly 0**
+  (e.g. `{"c0": 1, "c1": 0, "c2": 0}`). With PUCT, a prior of 0 means that child is never
+  explored. See PLAN.md decision D9.
+- One worked example (rectangle, perimeter 30, length 9): a *conceptual* error
+  ("9 + w = 30") got sound = 0.02, but an *arithmetic* slip ("9 + w = 15, so w = 7") got
+  sound = 0.97; Jev then preferred "area = 9 × 7 = 63" (p = 1) over a step that catches the
+  slip (p = 0), and rated the final answer 63 as 0.96 correct. One example, not a measurement:
+  the pilot (S2) measures it. It matches the docs' warning below.
 
 **What TypeSafe says jev-1.13 is weak at** ([jaggedness](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md)),
 directly relevant to judging maths steps:
