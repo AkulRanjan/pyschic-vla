@@ -2,6 +2,13 @@
 
 Protocol and design decisions, newest first. Open decisions are listed in `PLAN.md` §2.
 
+## 2026-10-05 — Full solutions may be 4096 tokens (all experiments)
+
+`generator.max_solution_tokens` 2048 -> 4096 in `configs/default.yaml`. On level-5 problems 25%
+of Gemma 26B's solutions hit 2048 tokens and were cut off without an answer, which would count
+as wrong for every method that writes full solutions (CoT, self-consistency, best-of-N, the
+pilot, and ThoughtZero's greedy completion).
+
 ## 2026-10-05 — Pilot on hard MATH train problems (D1, D13)
 
 **Decided by:** Prakhar ("go with next phase", accepting the recommendations).

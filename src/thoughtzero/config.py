@@ -45,6 +45,9 @@ class GeneratorCfg(_Section):
     max_solution_tokens: int = 2048
     stop: list[str] = ["\n\nStep", "\n\n\n"]
     max_concurrency: int = 32
+    # requests per minute for the chat generator; 0 = unlimited. The Gemini API free tier
+    # allows 30/min for Gemma 4 26B (GEMMA_MAX_RPM in .env)
+    max_rpm: float = Field(default=0.0, ge=0.0)
     # OpenRouter provider routing (sent as "provider" with generator.api=chat on OpenRouter).
     # 13 providers serve Gemma 4 26B at bf16 / fp8 / unknown precision, and not all support
     # logprobs, seed or stop: keep every call on full-precision providers that honour every

@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from collections.abc import Sequence
 from typing import Any
 
@@ -72,6 +73,23 @@ def steps_from_reply(text: str, first_number: int) -> list[str]:
     return [s for s in steps if s]
 
 
+class RateLimiter:
+    """Spaces requests at least ``60 / rpm`` seconds apart (free tiers cap requests/minute;
+    the Gemini API's free tier allows 30/min for Gemma 4 26B, checked 2026-10-05)."""
+
+    def __init__(self, rpm: float) -> None:
+        self.interval = 60.0 / rpm
+        self._next = 0.0
+        self._lock = asyncio.Lock()
+
+    async def wait(self) -> None:
+        async with self._lock:
+            now = time.monotonic()
+            start = max(now, self._next)
+            self._next = start + self.interval
+        await asyncio.sleep(start - now)
+
+
 class ChatGenerator:
     """Implements the ``Generator`` protocol (``thoughtzero.types``) over chat completions."""
 
@@ -103,6 +121,7 @@ class ChatGenerator:
             timeout=request_timeout_s,
         )
         self._sem = asyncio.Semaphore(cfg.max_concurrency)
+        self._limiter = RateLimiter(cfg.max_rpm) if cfg.max_rpm else None
 
     @classmethod
     def from_config(
@@ -114,6 +133,12 @@ class ChatGenerator:
 
     def count_tokens(self, text: str) -> int:
         return self.tokenizer.count_tokens(text)
+
+    async def _create(self, kwargs: dict[str, Any]) -> Any:
+        """One chat request, paced by ``generator.max_rpm`` (every attempt counts)."""
+        if self._limiter is not None:
+            await self._limiter.wait()
+        return await self.client.chat.completions.create(**kwargs)
 
     async def _chat(
         self,
@@ -147,7 +172,7 @@ class ChatGenerator:
                 reraise=True,
             ):
                 with attempt:
-                    resp = await self.client.chat.completions.create(**kwargs)
+                    resp = await self._create(kwargs)
         text = (resp.choices[0].message.content or "") if resp.choices else ""
         usage = resp.usage
         if usage is not None:
@@ -189,7 +214,7 @@ class ChatGenerator:
                     reraise=True,
                 ):
                     with attempt:
-                        resp = await self.client.chat.completions.create(**kwargs)
+                        resp = await self._create(kwargs)
             if resp.usage is not None:
                 accounting.record_gemma(resp.usage.prompt_tokens, resp.usage.completion_tokens)
             logprobs = resp.choices[0].logprobs if resp.choices else None

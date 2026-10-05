@@ -7,6 +7,8 @@ generator:
   temperature: 0.9
   top_p: 0.95
   max_step_tokens: 256
+  max_rpm: ${GEMMA_MAX_RPM:-0}    # requests/minute cap; 0 = none (Gemini free tier: 30)
+  max_solution_tokens: 4096     # 2048 cut off 25% of level-5 solutions (results/DECISIONS.md)
   stop: ["\n\nStep", "\n\n\n"]
 judge:
   kind: jev                     # jev | self | prm | uniform | hybrid
