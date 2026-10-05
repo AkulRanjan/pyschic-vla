@@ -84,7 +84,11 @@ class JevJudge:
         self.truncation_count = 0
 
     async def _ask(self, state: str, questions: dict[str, dict]) -> dict[str, dict]:
-        key = cache_key(state, questions, self.cfg.jev_model, PROMPT_VERSION)
+        if not questions:  # e.g. the root with a single candidate: nothing to ask
+            return {}
+        # the model that will answer is part of the key, so different routes / models
+        # (TypeSafe Jev, Bocha, the local stand-in) never share cached answers
+        key = cache_key(state, questions, self.client.model, PROMPT_VERSION)
         cached = self.cache.get(key)
         if cached is not None:
             accounting.record_jev(cached["input_tokens"], 0.0, cache_hit=True)
@@ -97,7 +101,7 @@ class JevJudge:
             budget_module.current_guard.check(estimated_tokens)
 
         try:
-            answers = await self.client.ask(state, questions)
+            reply = await self.client.ask(state, questions)
         except Exception:
             # release the reservation on failure (no spend), or it leaks
             # and eventually causes false "budget exceeded" errors.
@@ -105,12 +109,16 @@ class JevJudge:
                 budget_module.current_guard.record(0, estimated_tokens)
             raise
 
+        # bill what the API reports (usage.input_tokens) when it reports it
+        tokens = reply.input_tokens if reply.input_tokens is not None else estimated_tokens
         if budget_module.current_guard is not None:
-            budget_module.current_guard.record(estimated_tokens, estimated_tokens)
+            budget_module.current_guard.record(tokens, estimated_tokens)
 
-        self.cache.set(key, {"answers": answers, "input_tokens": estimated_tokens})
-        accounting.record_jev(estimated_tokens, self._usd(estimated_tokens), cache_hit=False)
-        return answers
+        self.cache.set(
+            key, {"answers": reply.answers, "input_tokens": tokens, "model": reply.model}
+        )
+        accounting.record_jev(tokens, self._usd(tokens), cache_hit=False)
+        return reply.answers
 
     def _usd(self, tokens: int) -> float:
         return tokens * self.cfg.usd_per_mtok / 1e6
@@ -129,13 +137,16 @@ class JevJudge:
         return _shuffle_permutation(" ".join(candidates), len(candidates))
 
     def _build_prior_questions(self, candidates: list[str]) -> dict[str, dict]:
+        if len(candidates) < 2:  # a Choice needs 2+ options; one candidate gets prior 1
+            return {}
         option_keys = self._option_keys(len(candidates))
         order = self._option_order(candidates)
 
         if self.cfg.prior_mode == "choice":
-            options = {option_keys[pos]: candidates[orig] for pos, orig in enumerate(order)}
+            # options go in `criteria`: option key -> description (docs.typesafe.ai/api)
+            criteria = {option_keys[pos]: candidates[orig] for pos, orig in enumerate(order)}
             return {
-                "next": {"type": "choice", "instructions": NEXT_INSTRUCTION, "options": options}
+                "next": {"type": "choice", "instructions": NEXT_INSTRUCTION, "criteria": criteria}
             }
         if self.cfg.prior_mode == "per_candidate_noul":
             return {
@@ -154,6 +165,8 @@ class JevJudge:
     ) -> list[float]:
         """Priors in the original candidate order. ``candidates`` is required with
         ``shuffle_options`` (to undo the shuffle)."""
+        if n == 1:
+            return [1.0]
         option_keys = self._option_keys(n)
 
         if self.cfg.prior_mode == "choice":

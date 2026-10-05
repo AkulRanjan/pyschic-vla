@@ -8,6 +8,7 @@ import pytest
 
 from thoughtzero.config import JudgeCfg, load_config
 from thoughtzero.eval.methods import MethodUnavailable, build_judge
+from thoughtzero.judge.client import JevReply
 from thoughtzero.judge.factory import make_judge
 from thoughtzero.judge.hybrid import HybridJudge
 from thoughtzero.judge.jev import JevJudge, _shuffle_permutation, _truncate_steps
@@ -91,12 +92,13 @@ def test_ablation_variants_build(variant):
         {"kind": "self"},
         {"kind": "prm"},
         {"kind": "hybrid", "prior_from": "self", "value_from": "prm"},  # tz_prm (B5)
-        {"kind": "jev"},  # default transport (openrouter) isn't implemented yet
+        {"kind": "jev"},  # no API key for the default route (openrouter)
     ],
 )
-def test_unbuilt_judges_are_skipped_by_build_judge(update):
+def test_unbuilt_judges_are_skipped_by_build_judge(update, monkeypatch):
     """eval/methods.py::build_judge must report these as unavailable (skip), not
     hand back an object that fails on every call."""
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     with pytest.raises(MethodUnavailable):
         build_judge(JudgeCfg().model_copy(update=update))
 
@@ -167,13 +169,15 @@ def test_shuffle_permutation_varies_with_seed():
 class _EchoClient:
     """Fake Jev transport: each option's probability is the number written in its text."""
 
-    async def ask(self, state: str, questions: dict) -> dict:
+    model = "echo"
+
+    async def ask(self, state: str, questions: dict) -> JevReply:
         await asyncio.sleep(0.01)  # let another expansion run in between
-        options = questions["next"]["options"]
+        options = questions["next"]["criteria"]
         answers = {"next": {"probabilities": {k: float(v) for k, v in options.items()}}}
         if "sound" in questions:
             answers["sound"] = {"noul": 0.5}
-        return answers
+        return JevReply(answers, None)
 
 
 async def test_shuffled_priors_stay_with_their_candidates_under_concurrency(tmp_path):

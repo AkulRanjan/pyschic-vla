@@ -28,10 +28,17 @@ def test_defaults_without_file() -> None:
     assert cfg.generator.stop == ["\n\nStep", "\n\n\n"]
 
 
-def test_default_yaml_loads_without_env() -> None:
+def test_default_yaml_loads_without_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    # ignore the developer's .env: this checks the defaults written in default.yaml
+    for var in ("GEMMA_BASE_URL", "GEMMA_MODEL", "JEV_TRANSPORT"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setattr("thoughtzero.config.load_dotenv", lambda *a, **k: False)
     cfg = load_config(CONFIGS / "default.yaml")
     assert cfg.generator.base_url == "http://localhost:8000/v1"
-    assert cfg.judge.jev_model == "jev-1.13.0"
+    assert cfg.judge.transport == "openrouter" and cfg.judge.jev_model is None
+    from thoughtzero.judge.client import resolve_route
+
+    assert resolve_route(cfg.judge)[1] == "typesafe/jev-1.13"  # the route pins jev-1.13
 
 
 def test_env_interpolation(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -8,7 +8,8 @@ generator:
   stop: ["\n\nStep", "\n\n\n"]
 judge:
   kind: jev                     # jev | self | prm | uniform | hybrid
-  jev_model: jev-1.13.0
+  transport: ${JEV_TRANSPORT:-openrouter}   # direct | openrouter | zen | vercel | bocha | local_stub
+  jev_model: null               # null: the route's default (judge/client.py PROVIDERS)
   prior_mode: choice            # choice | per_candidate_noul
   max_concurrency: 16
 search:
