@@ -43,10 +43,15 @@ class GeneratorCfg(_Section):
 
 class JudgeCfg(_Section):
     kind: Literal["jev", "self", "prm", "uniform", "hybrid"] = "jev"
-    jev_model: str = "jev-1.13.0"
-    # "local_stub" = open-jev, an open-source stand-in (not TypeSafe's model), for
-    # development only; opt in explicitly so no run measures it by accident.
-    transport: Literal["direct", "openrouter", "sdk", "local_stub"] = "openrouter"
+    # Route to Jev (judge/client.py PROVIDERS; docs/verified_apis.md). direct / openrouter /
+    # zen / vercel serve TypeSafe's jev-1.13; bocha is Bocha's own Jev-compatible model, and
+    # local_stub is open-jev, a local open-source stand-in. Neither of the last two is
+    # TypeSafe's model: development only, opt in explicitly.
+    transport: Literal["direct", "openrouter", "zen", "vercel", "bocha", "local_stub"] = (
+        "openrouter"
+    )
+    jev_model: str | None = None  # None: the route's default (pinned jev-1.13 where possible)
+    jev_url: str | None = None  # full POST URL, overriding the route's default
     prior_mode: Literal["choice", "per_candidate_noul"] = "choice"
     # index into prompts.SOUND_VARIANTS (pilot prompt-sensitivity check, SPEC.md §7)
     sound_variant: int = Field(default=0, ge=0)

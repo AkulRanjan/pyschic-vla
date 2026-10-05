@@ -6,22 +6,64 @@ Status values: ⬜ open · ✅ verified · ⚠️ verified, with a surprise (exp
 
 ---
 
-## Jev / TypeSafe (owner: Person 2, Jagriti)
+## Jev / TypeSafe: the real API
 
-**Decision (2026-10-05):** the TypeSafe direct-API waitlist and OpenRouter
-access are both still pending, so Week 1 (`JevJudge`, cache, budget) was
-built and tested against an **open-source stand-in**,
-`com-kotobalabs/open-jev-deberta-v3-large` (Apache-2.0, DeBERTa-v3-large,
-434M params), self-hosted locally. It is **not** TypeSafe's Jev; J1–J11
-below are resolved **for the stand-in only**, and must be re-verified once
-real access lands. Don't assume they transfer.
+Checked **2026-10-05** against the official docs (<https://docs.typesafe.ai/api.md>,
+[/models](https://docs.typesafe.ai/models.md), [/primitives](https://docs.typesafe.ai/primitives.md),
+[jev-1.13 jaggedness](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md)), and against a working
+client: [jev-chat/jev-chat-jarvis](https://github.com/jev-chat/jev-chat-jarvis) (MIT; `tools/jev/jev_client.py`,
+`app/.../jev/JudgeClient.kt`, `core/Prefs.kt`), an Android app that calls Jev in production
+over several routes. Code: `judge/client.py` (`PROVIDERS`), `judge/jev.py`; offline tests in
+`tests/test_jev_client.py`. **No real response is recorded yet**: run
+`python scripts/probe_jev.py --record` once a key is in `.env`, and update the ⚠️ rows below.
 
-The stand-in is **opt-in only**: `--set judge.transport=local_stub`. The
-default transport stays `openrouter`, which isn't implemented yet, so
-`make_judge(kind="jev")` raises `NotImplementedError` and eval/pilot skip it
-("not available yet") instead of silently measuring the stand-in. Whether
-any pilot/CP1 run may use the stand-in is a protocol decision for the team
-(SPEC.md §7), not a default.
+| # | Question | Answer | Source (link) | Checked | Status |
+|---|---|---|---|---|---|
+| J1 | Does `choice` return a probability for **every** option? (**critical**) | **Yes.** The answer has `choice`, `probabilities` (every option, sums to 1) and `confidence`. `prior_mode=choice` stays the default. | [api.md, Choice answer](https://docs.typesafe.ai/api.md) | 2026-10-05 | ✅ |
+| J2 | Request fields | `POST`, `Authorization: Bearer <key>`, JSON body `{"model", "state", "questions"}`. `questions` is a map id → `{"type": "noul" \| "choice" \| "score", "instructions", "criteria"}`. **Choice options go in `criteria`** (map option → description, 2..255 options); noul `criteria` is optional `{"true", "false"}`. `state` may be a string or JSON. | [api.md](https://docs.typesafe.ai/api.md); jarvis `JudgeClient.kt` | 2026-10-05 | ✅ |
+| J3 | Response shape | `{"model": "jev-1.13.0", "answers": {id: answer}, "usage": {"input_tokens", "output_tokens"}}`. Noul answer `{"type": "noul", "noul": p}`; choice answer as in J1. | [api.md, Response body](https://docs.typesafe.ai/api.md) | 2026-10-05 | ✅ |
+| J4 | Is usage reported? | **Yes** on the direct API (`usage.input_tokens`); `JevJudge` bills that, and falls back to chars/4 if a gateway omits it. | [api.md](https://docs.typesafe.ai/api.md) | 2026-10-05 | ⚠️ gateways unconfirmed |
+| J5 | Version pinning | `jev-1.13.0` is accepted on the direct API (`jev-latest` / `jev-preview` are moving aliases; the response's `model` reports the version). Gateways use their own names (`typesafe/jev-1.13`, `jev-1.13`, `typesafe-ai/jev`); whether these pin a version is unconfirmed. The response `model` is stored in the cache. | [models.md](https://docs.typesafe.ai/models.md) | 2026-10-05 | ⚠️ gateways |
+| J6 | OpenRouter shape | Not a chat wrapper: `POST https://openrouter.ai/api/alpha/decisions` with the same `{"model", "state", "questions"}` body and an `answers` map back. | jarvis `jev_client.py`, `Prefs.kt` | 2026-10-05 | ⚠️ third-party code only |
+| J7 | Rate limits | 100K tokens/s and 80 requests/s per account (direct; "adjusting dynamically"). `429` = rate limit, `529` = overloaded: both retried with exponential backoff; `401` / `422` fail fast. | [models.md](https://docs.typesafe.ai/models.md), [api.md Errors](https://docs.typesafe.ai/api.md) | 2026-10-05 | ✅ |
+| J8 | Limits | Choice: 2..255 options (a single surviving candidate gets prior 1 with no question). Context: 64k tokens per request; 32k for `state` + the longest question (`judge.max_state_tokens=28000` leaves room). Text only. | [api.md](https://docs.typesafe.ai/api.md), [models.md](https://docs.typesafe.ai/models.md) | 2026-10-05 | ✅ |
+| J9 | SDK or raw HTTP? | Raw HTTP (`httpx`): the protocol is one POST, and the official `typesafe_sdk` adds a dependency without changing anything we need. | [sdk/python.md](https://docs.typesafe.ai/sdk/python.md) | 2026-10-05 | ✅ |
+| J10 | Latency p50 / p95 | Not measured yet (needs a key; `probe_jev.py` prints the latency of one call). | — | — | ⬜ |
+| J11 | Terms of service: may benchmark results be published? | Not in the docs; the docs link to the [Master Customer Agreement](https://typesafe.ai/legal/mca). **Prakhar to read before publishing anything.** | [legal.md](https://docs.typesafe.ai/legal.md) | — | ⬜ |
+| J12 | Price | $0.042 per million input tokens; output free (`judge.usd_per_mtok=0.042`). | [models.md](https://docs.typesafe.ai/models.md) | 2026-10-05 | ✅ |
+
+**Routes** (`judge.transport`, or `JEV_TRANSPORT` in `.env`), all speaking the protocol above:
+
+| Route | POST URL | Model | Key (in `.env`) | Notes |
+|---|---|---|---|---|
+| `direct` | `https://api.typesafe.ai/v1/systemone` | `jev-1.13.0` | `TYPESAFE_API_KEY` | Official; waitlist |
+| `openrouter` | `https://openrouter.ai/api/alpha/decisions` | `typesafe/jev-1.13` | `OPENROUTER_API_KEY` | Beta |
+| `zen` | `https://opencode.ai/zen/v1/systemone` | `jev-1.13` | `OPENCODE_ZEN_API_KEY` | $0.042/Mtok input; `jev-1.13-free` exists but is "capability-limited": don't use it for results |
+| `vercel` | `https://ai-gateway.vercel.sh/typesafe/v1/systemone` | `typesafe-ai/jev` | `AI_GATEWAY_API_KEY` | Vercel AI Gateway |
+| `bocha` | `https://jev.bocha.cn/v1/systemone` | `bocha-jev-v1` | `BOCHA_API_KEY` | **Bocha's own model**, not TypeSafe's; free for a limited time. Development only |
+| `local_stub` | in-process | `open-jev-deberta-v3-large` | none | Open-source stand-in, below. Development only |
+
+`judge.jev_model` / `judge.jev_url` override a route's model or URL. The cache key includes
+the model, so different models never share cached answers.
+
+**What TypeSafe says jev-1.13 is weak at** ([jaggedness](https://docs.typesafe.ai/model-jaggedness/jev-1.13.md)),
+directly relevant to judging maths steps:
+- *"Jev is not a calculator"*: it *"struggles with tasks that require numeric precision"*
+  and doesn't count reliably. This is the pilot's real risk (SPEC.md §7).
+- **Choice option order:** it can lean toward the first option. Evidence for
+  `judge.shuffle_options=true` (PLAN.md D6); the pilot should measure it.
+- Literal reading, and accuracy that drops as the state fills with irrelevant detail:
+  keep the instructions exact and the state minimal.
+
+---
+
+## Jev stand-in: open-jev (development only)
+
+Before real access, `JevJudge`, the cache and the budget were built and tested against an
+**open-source stand-in**, `com-kotobalabs/open-jev-deberta-v3-large` (Apache-2.0,
+DeBERTa-v3-large, 434M params), self-hosted locally (`judge.transport=local_stub`). It is
+**not** TypeSafe's Jev; the table below describes the stand-in only. Its interface differs
+in one detail: it takes choice options as `options` (the client translates from `criteria`).
 
 HF-Space hosting was tried first (`hugging-apps/open-jev-deberta-v3-large-demo`,
 duplicated from `com-kotobalabs/...`) and abandoned: duplicating it requires

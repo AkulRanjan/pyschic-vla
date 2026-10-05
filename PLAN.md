@@ -19,15 +19,16 @@ All code paths run end to end **offline** (mock generator and judge): `pytest` (
 | Generator: `OpenAICompatibleGenerator`, Gemma prompts, tokenizer | ✅ done, offline-tested | Never run against a real Gemma server |
 | Data and grading: MATH-500, MATH train, AIME 2024–26, `math-verify` grading | ✅ done (grader checked 500/500 on MATH-500) | — |
 | Baselines: CoT (B1), self-consistency (B2), best-of-N (B3), 31B ceiling (C) | ✅ done | Real runs |
-| Judge: `JevJudge` (cache, budget cap, prior modes, truncation, shuffle), uniform, constant, hybrid, factory | ✅ done against the **open-jev stand-in** | **Real TypeSafe Jev transport** (blocked on access) |
+| Judge: `JevJudge` (cache, budget cap, prior modes, truncation, shuffle), uniform, constant, hybrid, factory | ✅ done; real HTTP routes to Jev (direct, OpenRouter, OpenCode Zen, Vercel) built to the official API docs and tested offline | **An API key** (S0); then one real call to confirm (`probe_jev.py`) |
 | Judge: `GemmaSelfJudge` (B4), `PRMJudge` (B5) | ❌ stubs | Phase S3 |
 | Eval: runner (resumable, shardable), metrics, plots, analysis | ✅ done | Real runs |
 | Pilot: traces, Monte Carlo labels, judge scores, sensitivity, report with GO / PARTIAL / NO-GO | ✅ done | Real run |
-| GPU serving: `notebooks/kaggle_server.ipynb`, `docs/gpu_setup.md` | ✅ written | Never launched; throughput unmeasured |
+| GPU serving: `notebooks/kaggle_server.ipynb`, `docs/gpu_setup.md` | ✅ written | Never launched; throughput unmeasured. The laptop GPU (RTX 3050, 6 GB) is too small for Gemma E4B (4-bit needs ~11.5 GB): use Kaggle |
+| Smoke test (`smoke_test.py`) | ✅ mock and real paths (real path added 2026-10-05) | A Gemma server and a Jev key |
 | `results/REPORT.md` | skeleton | Filled in S7 |
 
 **In short: the software is built; no real experiment has run yet.** Two external things
-block every real result: **Jev access** and **a running Gemma server**.
+block every real result: **a Jev API key** and **a running Gemma server**.
 
 ---
 
@@ -39,12 +40,13 @@ that needs them. Write each decision down in `results/DECISIONS.md` with its dat
 | # | Decision | Needed by | Recommendation |
 |---|---|---|---|
 | D1 | **Pilot split:** MATH-500 (`test`, as the spec says) or MATH **train** (`pilot.source_split=train`)? Tuning prompts on MATH-500 leaks into the main results. | S2 | **Train.** Keep MATH-500 untouched until S6. |
-| D2 | **If real Jev access doesn't come:** run the study on the open-jev stand-in (then it's a study of open-jev, not Jev), or wait? | S1 | Give the waitlist a deadline (e.g. one week). Meanwhile use the stand-in **for development only**. |
+| D2 | **Which Jev route.** All of direct (waitlist), OpenRouter (beta), OpenCode Zen and Vercel serve TypeSafe's jev-1.13. Bocha and the local stand-in are other models: development only. | S1 | Whichever key you can get first among the four TypeSafe routes; OpenCode Zen and OpenRouter need no waitlist. Use one route for all results. |
 | D3 | **Jev budget.** The default cap is `budget.max_usd=5`. Upper-bound estimate for everything (runner's 2,000 tokens/call, no cache): TZ sweep on MATH-500 ~$5.0, AIME ~$0.9, best-of-N ~$2.7, ablations ~$4.3, pilot ~$0.2, so ~$13. Real cost should be well below that: states are shorter than 2,000 tokens, and the seeded generator makes the n=8/16/32 trees largely repeat the n=64 tree's expansions, which then hit the cache. | S6 | Measure tokens/call in S4, re-estimate, then raise the cap or trim the sweep. |
 | D4 | **`parallel_sims`** (default 8). On the toy task, 32 simulations with 8 in parallel loses accuracy with `most_visited`; parallelism trades quality for wall-clock time. | S4 | Measure on the 50-problem dev run (1 vs 4 vs 8) and fix it before S6. |
 | D5 | **Spec §6.2 deviation (already merged):** a simulation that waits on a leaf being expanded keeps descending, instead of re-backing-up that leaf. | now | Keep; record it in the Method section of the report. |
-| D6 | **Option shuffling** (`judge.shuffle_options`): Jev may favour the first option. | S2 | Measure position bias in the pilot; turn it on if the bias is real. |
+| D6 | **Option shuffling** (`judge.shuffle_options`): TypeSafe's own docs say jev-1.13 can lean toward the first option. | S2 | Measure the bias in the pilot; expect to turn shuffling on. |
 | D7 | **PRM baseline (B5):** `Qwen/Qwen2.5-Math-PRM-7B` is ~15 GB in bf16 (above the 5 GB "ask first" line, and too big for one T4 next to Gemma). | S3 | Optional per spec. Skip it unless a bigger GPU is available, and say so in the report. |
+| D8 | **Jev and arithmetic.** TypeSafe's docs: *"Jev is not a calculator"*; jev-1.13 *"struggles with tasks that require numeric precision"*. Judging maths steps leans on exactly that. | S2 | Nothing to decide yet; the pilot answers it. Keep it in mind if AUROC is low, and cite it in the report. |
 
 ---
 
@@ -53,17 +55,28 @@ that needs them. Write each decision down in `results/DECISIONS.md` with its dat
 The order matters: S0 starts the slow external processes, and S3 is offline work to do
 **while waiting** for them.
 
-### S0. Unblock access (day 1, ~2 hours, then waiting)
+### S0. Unblock access (day 1) — in progress
 
-- **Jev:** join the TypeSafe direct-API waitlist (`https://api.typesafe.ai/v1/systemone`) and
-  try OpenRouter (`typesafe/jev-1.13`, beta). Read both terms of service (J11: are benchmarks
-  publishable?).
-- **GPU:** check the Kaggle GPU quota (D5 in `docs/verified_apis.md`); have a fallback
-  (a rented 24 GB GPU) priced.
-- **Hugging Face token** in `.env` (Gemma 4 isn't gated, but rate limits are friendlier).
-- Put keys in `.env` only (see `.env.example`); never in code or logs.
+Done (2026-10-05):
+- Jev client for every route that serves real jev-1.13, built from the official API
+  reference (https://docs.typesafe.ai/api.md) and checked against a production client
+  (jev-chat/jev-chat-jarvis). Facts and sources: `docs/verified_apis.md`.
+- `.env` created from `.env.example` (git-ignored); `scripts/probe_jev.py` checks a route.
+- Real `smoke_test.py` path; Kaggle notebook passes the route and its key from Kaggle secrets.
+- GPU decision: Kaggle T4 (the laptop's 6 GB GPU can't hold Gemma E4B).
 
-**Done when:** requests are submitted, and you know which GPU you'll use.
+Your steps:
+1. **Get one Jev key**: OpenRouter (`OPENROUTER_API_KEY`, route `openrouter`) or OpenCode Zen
+   (`OPENCODE_ZEN_API_KEY`, route `zen`) need no waitlist; also join the TypeSafe waitlist
+   (`TYPESAFE_API_KEY`, route `direct`, the official endpoint). Put the key and
+   `JEV_TRANSPORT=<route>` in `.env`.
+2. Check it (one call, ~$0.00002): `python scripts/probe_jev.py --record`. This also records a
+   real response as a test fixture; commit it.
+3. **Kaggle**: account with phone verification (needed for GPU), note the weekly GPU quota
+   (row D5 in `docs/verified_apis.md`), and add the same key as a Kaggle secret.
+4. Read TypeSafe's Master Customer Agreement (J11): may benchmark results be published?
+
+**Done when:** `probe_jev.py` passes on a TypeSafe route, and Kaggle GPU access works.
 
 ### S3 first. Alternative judges (days 1–4, offline; spec Phase 3 needs them)
 
@@ -96,16 +109,10 @@ Do this while S0 is pending; it needs no keys.
    prefix caching; see `docs/gpu_setup.md`). Set `GEMMA_BASE_URL` / `GEMMA_MODEL`.
    - Measure throughput for `n=4` short steps (G10) and check `logprobs` on the endpoint (G6),
      which `GemmaSelfJudge` needs.
-2. **Real Jev transport**, once you have access:
-   - Resolve J1–J11 in `docs/verified_apis.md` **from the official docs and real responses**;
-     no guessed field names (CLAUDE.md rule 4). J1 (does `choice` return a full
-     distribution?) is critical: if not, use `prior_mode=per_candidate_noul`.
-   - Record real responses as fixtures in `tests/fixtures/jev/` (the stand-in fixtures stay,
-     labelled as such).
-   - Implement the `direct` / `openrouter` branch of `judge/client.py` on top of the existing
-     `request_with_retry` (retries and semaphore are already tested); map the real response
-     into the `{question_id: {"noul": p}}` / `{"probabilities": {...}}` shape `JevJudge` parses.
-3. Smoke test: `python scripts/smoke_test.py --n-sims 4 --k 3`.
+2. **Jev** is already implemented (S0). Once `probe_jev.py --record` has a real response,
+   update the ⚠️ rows (J4–J6) in `docs/verified_apis.md` and measure latency (J10).
+3. Smoke test, in the Kaggle notebook (set `SCRIPT` to the real command):
+   `python scripts/smoke_test.py --n-sims 4 --k 3 --tokenizer google/gemma-4-E4B-it`.
 
 **Done when** (spec Phase 0): ≥ 1 of 3 easy problems solved, ≤ 20 Jev calls, ≤ $0.01, and
 the Jev and Gemma VERIFY rows are ✅. Write `results/PHASE_0_NOTES.md`.
