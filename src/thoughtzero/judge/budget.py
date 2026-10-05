@@ -53,3 +53,34 @@ def configure(max_usd: float, usd_per_mtok: float = 0.042) -> BudgetGuard:
 
 def estimate_run_cost(n_calls: int, avg_tokens: float, usd_per_mtok: float = 0.042) -> float:
     return n_calls * avg_tokens * usd_per_mtok / 1e6
+
+
+class SpendCap:
+    """Hard USD cap on hosted-Gemma spend, charged after each call (a call already made has
+    been paid for, so the cap can be overshot by at most one call)."""
+
+    def __init__(self, max_usd: float) -> None:
+        self.max_usd = max_usd
+        self.spent_usd = 0.0
+
+    def charge(self, usd: float) -> None:
+        self.spent_usd += usd
+        if self.spent_usd > self.max_usd:
+            raise BudgetExceeded(
+                f"Gemma budget exceeded: spent=${self.spent_usd:.4f} > max=${self.max_usd:.4f}"
+            )
+
+
+gemma_cap: SpendCap | None = None
+
+
+def configure_gemma(max_usd: float) -> SpendCap:
+    global gemma_cap
+    gemma_cap = SpendCap(max_usd)
+    return gemma_cap
+
+
+def charge_gemma(usd: float) -> None:
+    """Called by the hosted generator after every request; no-op without a cap."""
+    if gemma_cap is not None and usd > 0:
+        gemma_cap.charge(usd)

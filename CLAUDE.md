@@ -1,9 +1,9 @@
 # CLAUDE.md
 
-ThoughtZero: training-free AlphaZero-style MCTS over math reasoning steps. Gemma 4 E4B proposes steps; Jev gives priors and values. The full spec is in `SPEC.md`.
+ThoughtZero: training-free AlphaZero-style MCTS over math reasoning steps. Gemma 4 (26B-A4B via a hosted API; see `results/DECISIONS.md`) proposes steps; Jev gives priors and values. The full spec is in `SPEC.md`.
 
 ## Start of every session
-1. Read `SPEC.md`, this file and `PLAN.md` (the solo plan: current status and remaining phases).
+1. Read `SPEC.md`, this file, `PLAN.md` (status, remaining phases, open decisions) and `RUNBOOK.md` (how to run everything, with costs).
 2. **Prakhar now owns the whole project alone** (since 2026-10-05). The per-person ownership rules in `team/*.md` no longer apply; those files are kept as background on how each module was designed (Akul: generator/data, Jagriti: judge, Harjas: eval/pilot).
 3. Work one phase at a time. Check the phase's definition of done before moving on.
 

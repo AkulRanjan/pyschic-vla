@@ -32,6 +32,7 @@ from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait
 from thoughtzero import accounting
 from thoughtzero.config import Config, GeneratorCfg
 from thoughtzero.data.grading import has_final_answer
+from thoughtzero.judge import budget
 from thoughtzero.llm.gemma import THINKING_MARKERS, _derive_seed, _is_retryable
 from thoughtzero.llm.prompts import generator_chat_messages, split_steps, step_header
 from thoughtzero.llm.tokenize import ChatTokenizer, HFChatTokenizer
@@ -134,6 +135,14 @@ class ChatGenerator:
     def count_tokens(self, text: str) -> int:
         return self.tokenizer.count_tokens(text)
 
+    def _record(self, prompt_tokens: int, completion_tokens: int) -> None:
+        """Ledger tokens and USD; charges the Gemma spend cap (BudgetExceeded past it)."""
+        usd = (
+            prompt_tokens * self.cfg.usd_per_mtok_in + completion_tokens * self.cfg.usd_per_mtok_out
+        ) / 1e6
+        accounting.record_gemma(prompt_tokens, completion_tokens, usd)
+        budget.charge_gemma(usd)
+
     async def _create(self, kwargs: dict[str, Any]) -> Any:
         """One chat request, paced by ``generator.max_rpm`` (every attempt counts)."""
         if self._limiter is not None:
@@ -176,10 +185,10 @@ class ChatGenerator:
         text = (resp.choices[0].message.content or "") if resp.choices else ""
         usage = resp.usage
         if usage is not None:
-            accounting.record_gemma(usage.prompt_tokens, usage.completion_tokens)
+            self._record(usage.prompt_tokens, usage.completion_tokens)
         else:
             prompt_text = "\n".join(m["content"] for m in messages)
-            accounting.record_gemma(self.count_tokens(prompt_text), self.count_tokens(text))
+            self._record(self.count_tokens(prompt_text), self.count_tokens(text))
         if any(mark in text for mark in THINKING_MARKERS):
             log.warning("Thinking-mode markup in generator output; check the model / route")
         return text
@@ -216,7 +225,7 @@ class ChatGenerator:
                     with attempt:
                         resp = await self._create(kwargs)
             if resp.usage is not None:
-                accounting.record_gemma(resp.usage.prompt_tokens, resp.usage.completion_tokens)
+                self._record(resp.usage.prompt_tokens, resp.usage.completion_tokens)
             logprobs = resp.choices[0].logprobs if resp.choices else None
             if logprobs is not None and logprobs.content:
                 return {t.token: t.logprob for t in logprobs.content[0].top_logprobs}

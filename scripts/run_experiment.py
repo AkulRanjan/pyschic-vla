@@ -38,6 +38,7 @@ from thoughtzero.eval.methods import (
 from thoughtzero.eval.runner import (
     CostConfirmationRequired,
     check_cost,
+    estimate_gemma_usd,
     estimate_jev_usd,
     merge_runs,
     parse_shard,
@@ -97,7 +98,11 @@ def main(argv: list[str] | None = None) -> int:
         f"{n_mine} problems (shard {args.shard or 'all'}); methods {cfg.eval.methods} -> {run_dir}"
     )
     try:
-        check_cost(estimate_jev_usd(cfg, n_mine, methods), args.yes, cfg.budget.confirm_above_usd)
+        gemma_usd = estimate_gemma_usd(cfg, n_mine, methods)
+        if gemma_usd:
+            print(f"Estimated hosted-Gemma cost: ${gemma_usd:.4f}")
+        jev_usd = estimate_jev_usd(cfg, n_mine, methods)
+        check_cost(jev_usd + gemma_usd, args.yes, cfg.budget.confirm_above_usd)
     except CostConfirmationRequired as e:
         print(f"REFUSING: {e}", file=sys.stderr)
         return 2

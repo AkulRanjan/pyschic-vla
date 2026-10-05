@@ -38,6 +38,7 @@ def setup(args: argparse.Namespace) -> Config:
         from thoughtzero.judge import budget
 
         budget.configure(cfg.budget.max_usd, cfg.judge.usd_per_mtok)
+        budget.configure_gemma(cfg.budget.max_gemma_usd)
     return cfg
 
 
@@ -75,10 +76,15 @@ def load_problems(
         return datasets.ablation_subset(n or 200, seed)
     if cfg.eval.dataset == "math500":
         probs = datasets.load_math500()
+    elif cfg.eval.dataset == "math_train":  # for tuning (PLAN S4): never tune on test data
+        train = datasets.load_math_train()
+        return datasets.stratified_subset(train, n or 50, seed) if n != 0 else train
     elif m := _AIME.match(cfg.eval.dataset):
         probs = datasets.load_aime(int(m.group(1)))
     else:
-        raise ValueError(f"unknown eval.dataset {cfg.eval.dataset!r} (math500 | aimeYYYY)")
+        raise ValueError(
+            f"unknown eval.dataset {cfg.eval.dataset!r} (math500 | math_train | aimeYYYY)"
+        )
     return probs[:n] if n else probs
 
 
