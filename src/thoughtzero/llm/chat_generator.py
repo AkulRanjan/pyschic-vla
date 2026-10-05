@@ -38,6 +38,7 @@ from thoughtzero.types import GenOut
 
 log = logging.getLogger(__name__)
 
+GEMINI_HOST = "generativelanguage.googleapis.com"
 LOGPROB_ATTEMPTS = 3  # a reply can lack logprobs (provider-dependent): ask again
 
 
@@ -45,7 +46,7 @@ LOGPROB_ATTEMPTS = 3  # a reply can lack logprobs (provider-dependent): ask agai
 HOSTED_KEYS = {
     "openrouter.ai": "OPENROUTER_API_KEY",
     # Gemini API's OpenAI-compatible endpoint (Gemma 4 26B-A4B / 31B; AI Studio key)
-    "generativelanguage.googleapis.com": "GEMINI_API_KEY",
+    GEMINI_HOST: "GEMINI_API_KEY",
 }
 
 
@@ -133,7 +134,8 @@ class ChatGenerator:
             kwargs["top_p"] = self.cfg.top_p
         if stop:
             kwargs["stop"] = list(stop)
-        if self.seed is not None:  # passed for reproducibility where the route honours it
+        # passed for reproducibility where the route honours it; the Gemini API rejects it
+        if self.seed is not None and GEMINI_HOST not in self.cfg.base_url:
             kwargs["seed"] = _derive_seed(self.seed, repr(messages), sample)
         kwargs.update(self._routing())
         async with self._sem:
@@ -165,6 +167,9 @@ class ChatGenerator:
         For ``judge/self_judge.py``. Routes may return fewer than ``top_k`` (OpenRouter's
         Gemma 4: 5 when asked for 5).
         """
+        if GEMINI_HOST in self.cfg.base_url:
+            # its OpenAI-compatible endpoint rejects logprobs ("Unknown name logprobs")
+            raise NotImplementedError("the Gemini API doesn't return logprobs (self-judge)")
         kwargs: dict[str, Any] = {
             "model": self.cfg.model,
             "messages": messages,
@@ -194,9 +199,17 @@ class ChatGenerator:
         return {}
 
     def _routing(self) -> dict[str, Any]:
-        """OpenRouter provider routing (``generator.provider``); nothing for other endpoints."""
+        """Endpoint-specific request fields.
+
+        - OpenRouter: provider routing (``generator.provider``).
+        - Gemini API: Gemma 4 thinks by default there, and its thoughts (``<thought>...``)
+          eat the step's token budget; ``reasoning_effort="minimal"`` switches thinking off
+          ("none" is rejected for Gemma). Checked 2026-10-05 (docs/verified_apis.md G13).
+        """
         if "openrouter.ai" in self.cfg.base_url and self.cfg.provider:
             return {"extra_body": {"provider": dict(self.cfg.provider)}}
+        if GEMINI_HOST in self.cfg.base_url:
+            return {"reasoning_effort": "minimal"}
         return {}
 
     def _messages(self, problem: str, steps: Sequence[str], next_step_only: bool) -> Any:
