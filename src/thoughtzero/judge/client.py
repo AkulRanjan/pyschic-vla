@@ -35,10 +35,14 @@ REQUEST_TIMEOUT_S = 60.0
 @dataclass(frozen=True)
 class Provider:
     url: str
-    key_env: str
+    key_env: str | None  # None: no API key (a local server)
     model: str
     headers: tuple[tuple[str, str], ...] = ()
     is_typesafe_model: bool = True  # False: a different model behind the same protocol
+    free: bool = False  # True: no per-token price (local), so cost and budget are 0
+    max_state_tokens: int | None = (
+        None  # the route's context limit, if below judge.max_state_tokens
+    )
 
 
 PROVIDERS: dict[str, Provider] = {
@@ -61,8 +65,33 @@ PROVIDERS: dict[str, Provider] = {
         "bocha-jev-v1",
         is_typesafe_model=False,
     ),
+    # jevos (github.com/feder-cr/jev, MIT): an open-source model that speaks Jev's wire format,
+    # served locally on the CPU by `jev serve`. Not TypeSafe's model (results/DECISIONS.md).
+    # 8,192-token context: keep the state well under it.
+    "jevos": Provider(
+        "http://127.0.0.1:8017/v1/systemone",
+        None,
+        "jevos-v4",
+        is_typesafe_model=False,
+        free=True,
+        max_state_tokens=6_000,
+    ),
 }
 LOCAL_STUB_MODEL = "open-jev-deberta-v3-large"
+FREE_ROUTES = {"local_stub"} | {name for name, p in PROVIDERS.items() if p.free}
+
+
+def judge_usd_per_mtok(cfg: JudgeCfg) -> float:
+    """The judge's price per million input tokens: 0 on a free (local) route."""
+    return 0.0 if cfg.transport in FREE_ROUTES else cfg.usd_per_mtok
+
+
+def judge_max_state_tokens(cfg: JudgeCfg) -> int:
+    """``judge.max_state_tokens``, lowered to the route's context limit if it has one."""
+    provider = PROVIDERS.get(cfg.transport)
+    if provider is not None and provider.max_state_tokens is not None:
+        return min(cfg.max_state_tokens, provider.max_state_tokens)
+    return cfg.max_state_tokens
 
 
 class JevConfigError(ValueError):
@@ -152,8 +181,8 @@ class JevClient:
         self._headers: dict[str, str] = {}
         if cfg.transport != "local_stub":
             provider = PROVIDERS[cfg.transport]
-            self._key = (os.environ.get(provider.key_env) or "").strip()
-            if not self._key:
+            self._key = (os.environ.get(provider.key_env) or "").strip() if provider.key_env else ""
+            if provider.key_env and not self._key:
                 # build_judge turns this into "method unavailable", with this message
                 raise JevConfigError(
                     f"judge.transport={cfg.transport!r} needs {provider.key_env} in .env "
@@ -182,7 +211,10 @@ class JevClient:
             "POST",
             self.url,
             json={"model": self.model, "state": state, "questions": questions},
-            headers={"Authorization": f"Bearer {self._key}", **self._headers},
+            headers={
+                **({"Authorization": f"Bearer {self._key}"} if self._key else {}),
+                **self._headers,
+            },
         )
         body = resp.json()
         answers = body.get("answers")

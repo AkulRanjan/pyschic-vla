@@ -13,7 +13,7 @@ from thoughtzero.config import JudgeCfg
 from thoughtzero.judge import budget as budget_module
 from thoughtzero.judge.base import renormalize
 from thoughtzero.judge.cache import DiskCache, cache_key
-from thoughtzero.judge.client import JevClient
+from thoughtzero.judge.client import JevClient, judge_max_state_tokens, judge_usd_per_mtok
 from thoughtzero.llm.prompts import (
     CANDIDATE_INSTRUCTION_TEMPLATE,
     FINAL_INSTRUCTION,
@@ -97,22 +97,23 @@ class JevJudge:
         chars = len(state) + sum(len(str(q)) for q in questions.values())
         estimated_tokens = max(1, chars // 4)
 
-        if budget_module.current_guard is not None:
-            budget_module.current_guard.check(estimated_tokens)
+        guard = budget_module.current_guard if judge_usd_per_mtok(self.cfg) else None
+        if guard is not None:
+            guard.check(estimated_tokens)
 
         try:
             reply = await self.client.ask(state, questions)
         except Exception:
             # release the reservation on failure (no spend), or it leaks
             # and eventually causes false "budget exceeded" errors.
-            if budget_module.current_guard is not None:
-                budget_module.current_guard.record(0, estimated_tokens)
+            if guard is not None:
+                guard.record(0, estimated_tokens)
             raise
 
         # bill what the API reports (usage.input_tokens) when it reports it
         tokens = reply.input_tokens if reply.input_tokens is not None else estimated_tokens
-        if budget_module.current_guard is not None:
-            budget_module.current_guard.record(tokens, estimated_tokens)
+        if guard is not None:
+            guard.record(tokens, estimated_tokens)
 
         self.cache.set(
             key, {"answers": reply.answers, "input_tokens": tokens, "model": reply.model}
@@ -121,7 +122,7 @@ class JevJudge:
         return reply.answers
 
     def _usd(self, tokens: int) -> float:
-        return tokens * self.cfg.usd_per_mtok / 1e6
+        return tokens * judge_usd_per_mtok(self.cfg) / 1e6
 
     def _option_keys(self, n: int) -> list[str]:
         return [f"c{i}" for i in range(n)]
@@ -195,7 +196,7 @@ class JevJudge:
     async def prior_and_value(
         self, problem: str, steps: list[str], candidates: list[str]
     ) -> tuple[list[float], float]:
-        steps, truncated = _truncate_steps(problem, steps, self.cfg.max_state_tokens)
+        steps, truncated = _truncate_steps(problem, steps, judge_max_state_tokens(self.cfg))
         if truncated:
             self.truncation_count += 1
 
@@ -216,7 +217,7 @@ class JevJudge:
     ) -> list[float]:
         """Like prior_and_value, but never asks `sound` (HybridJudge's
         prior-only ablation, so Jev isn't charged for a discarded value)."""
-        steps, truncated = _truncate_steps(problem, steps, self.cfg.max_state_tokens)
+        steps, truncated = _truncate_steps(problem, steps, judge_max_state_tokens(self.cfg))
         if truncated:
             self.truncation_count += 1
         state = judge_state(problem, steps)
@@ -230,7 +231,7 @@ class JevJudge:
     async def step_sound(self, problem: str, steps: list[str]) -> float:
         if not steps:
             return self.cfg.root_value
-        steps, truncated = _truncate_steps(problem, steps, self.cfg.max_state_tokens)
+        steps, truncated = _truncate_steps(problem, steps, judge_max_state_tokens(self.cfg))
         if truncated:
             self.truncation_count += 1
         state = judge_state(problem, steps)
@@ -240,7 +241,7 @@ class JevJudge:
         return float(answers["sound"]["noul"])
 
     async def final_correct(self, problem: str, steps: list[str]) -> float:
-        steps, truncated = _truncate_steps(problem, steps, self.cfg.max_state_tokens)
+        steps, truncated = _truncate_steps(problem, steps, judge_max_state_tokens(self.cfg))
         if truncated:
             self.truncation_count += 1
         state = judge_state_final(problem, steps)

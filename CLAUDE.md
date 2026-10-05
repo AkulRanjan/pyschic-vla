@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-ThoughtZero: training-free AlphaZero-style MCTS over math reasoning steps. Gemma 4 (26B-A4B via a hosted API; see `results/DECISIONS.md`) proposes steps; Jev gives priors and values. The full spec is in `SPEC.md`.
+ThoughtZero: training-free AlphaZero-style MCTS over math reasoning steps. Gemma 4 (26B-A4B via a hosted API; see `results/DECISIONS.md`) proposes steps; a Jev-protocol judge (jevos by default, see `results/DECISIONS.md`) gives priors and values. The full spec is in `SPEC.md`.
 
 ## Start of every session
 1. Read `SPEC.md`, this file, `PLAN.md` (status, remaining phases, open decisions) and `RUNBOOK.md` (how to run everything, with costs).

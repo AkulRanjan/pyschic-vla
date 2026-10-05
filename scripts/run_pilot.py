@@ -39,6 +39,7 @@ from thoughtzero.eval.runner import (
     parse_shard,
 )
 from thoughtzero.eval.toolkit import Toolkit, mock_toolkit, real_toolkit
+from thoughtzero.judge.client import judge_usd_per_mtok
 from thoughtzero.llm.prompts import SOUND_VARIANTS
 from thoughtzero.pilot import mc_label, report, score, traces
 from thoughtzero.pilot.common import load_rows
@@ -67,7 +68,7 @@ def estimate_jev_usd(
         steps = traces.prefix_steps(px, tr)
         chars = len(pb[px["problem_id"]].question) + sum(len(s) for s in steps)
         tok += chars // 4 + PROMPT_OVERHEAD_TOKENS
-    return tok * cfg.judge.usd_per_mtok / 1e6
+    return tok * judge_usd_per_mtok(cfg.judge) / 1e6
 
 
 def merge_dirs(srcs: list[str], dst: Path) -> None:

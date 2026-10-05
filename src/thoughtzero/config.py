@@ -65,8 +65,8 @@ class JudgeCfg(_Section):
     # zen / vercel serve TypeSafe's jev-1.13; bocha is Bocha's own Jev-compatible model, and
     # local_stub is open-jev, a local open-source stand-in. Neither of the last two is
     # TypeSafe's model: development only, opt in explicitly.
-    transport: Literal["direct", "openrouter", "zen", "vercel", "bocha", "local_stub"] = (
-        "openrouter"
+    transport: Literal["direct", "openrouter", "zen", "vercel", "bocha", "jevos", "local_stub"] = (
+        "jevos"
     )
     jev_model: str | None = None  # None: the route's default (pinned jev-1.13 where possible)
     jev_url: str | None = None  # full POST URL, overriding the route's default

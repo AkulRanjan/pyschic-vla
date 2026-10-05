@@ -14,6 +14,9 @@
 - **Generator:** Gemma 4 **26B-A4B** (a mixture-of-experts model, ~4B active parameters) via a
   hosted API. The original design used the 4B Gemma 4 E4B, which no hosted API serves
   (`results/DECISIONS.md`). The claim is therefore about a 26B MoE model, not a 4B dense one.
+- **Judge:** **jevos-v4**, an open-source model that speaks Jev's protocol and runs locally,
+  replacing TypeSafe's Jev (`results/DECISIONS.md`). Every judge result below is about jevos;
+  the question becomes whether a *free, local* judge can guide the search.
 - **Pilot decision:** _[pending: GO / PARTIAL / NO-GO, Jev AUROC x.xx [lo, hi]]_
 - **Headline result:** _[pending: ThoughtZero at n_simulations=… vs self-consistency at matched
   completion tokens: Δ = … pp [CI], p = …]_

@@ -4,8 +4,9 @@ Training-free, AlphaZero-style tree search over the reasoning steps of a math so
 
 - **Gemma 4** proposes candidate next steps (26B-A4B through a hosted API; the original design
   used the 4B E4B, see `results/DECISIONS.md`).
-- **Jev**, TypeSafe's calibrated decision model, supplies both the **policy prior** (which
-  step to try) and the **value** (is the solution so far correct?), in one call per expansion.
+- A **Jev-protocol judge** supplies both the **policy prior** (which step to try) and the
+  **value** (is the solution so far correct?), in one call per expansion: by default
+  **jevos**, a free open-source model that runs locally, or TypeSafe's **Jev** via OpenRouter.
 - No model is trained. The question is whether search guided by an off-the-shelf judge beats
   sampling-and-voting at the same compute.
 

@@ -32,7 +32,22 @@ python scripts/smoke_test.py --mock                     # offline: prints "MCTS 
 Keep **one route for all results**: the pilot's labels, the search and the baselines should
 come from the same Gemma (`results/DECISIONS.md`).
 
-### Jev (the judge): always OpenRouter
+### The judge: jevos (default) or Jev
+
+**Default since 2026-10-05: jevos** (`results/DECISIONS.md`), free and local. Download and start
+it once per session (Windows PowerShell; Linux/macOS use the `.tar.gz` build):
+
+```powershell
+mkdir P:\jevos; cd P:\jevos
+gh release download jevos-v4 --repo feder-cr/jev --pattern "jev-windows-x64.zip" --pattern "jevos-v4-openvino-int8.zip" --pattern "SHA256SUMS.txt"
+Get-FileHash jev-windows-x64.zip, jevos-v4-openvino-int8.zip -Algorithm SHA256   # compare with SHA256SUMS.txt
+Expand-Archive jev-windows-x64.zip -DestinationPath .
+cd jev; Expand-Archive ..\jevos-v4-openvino-int8.zip -DestinationPath .        # creates model.\jev.exe serve                                                                # keep this window open
+```
+
+`.env`: `JEV_TRANSPORT=jevos` (no key). Check it: `python scripts/probe_jev.py --transport jevos`.
+
+**To use TypeSafe's Jev instead** (the original study):
 
 `OPENROUTER_API_KEY=...`, `JEV_TRANSPORT=openrouter`. Jev is cheap (~$0.04 per 1,000 calls on
 short states), but the account needs **purchased** credit; the free allowance runs out fast

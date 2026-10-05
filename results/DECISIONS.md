@@ -2,6 +2,27 @@
 
 Protocol and design decisions, newest first. Open decisions are listed in `PLAN.md` §2.
 
+## 2026-10-05 — Judge: jevos instead of TypeSafe's Jev
+
+**Decided by:** Prakhar ("swap it for jev"), after being told the consequences.
+
+**What:** the judge is **jevos-v4** ([feder-cr/jev](https://github.com/feder-cr/jev), MIT), an
+open-source model that speaks Jev's wire format and runs locally on the CPU (`jev serve`,
+`http://127.0.0.1:8017/v1/systemone`), instead of TypeSafe's jev-1.13 through OpenRouter
+(`judge.transport: jevos`, the new default). Same questions, same parsing.
+
+**Why:** Jev needs purchased API credit; jevos is free, unlimited and fast (25–110 ms per call).
+
+**Consequences:**
+- **The study is now about jevos, not Jev.** jevos is a ~0.6 GB model trained on policy and rule
+  decisions (its README's benchmarks); nothing shows it can check maths, and real Jev already
+  missed an arithmetic slip. The report, pilot decision and every number must name jevos.
+- Context is 8,192 tokens: states are capped at 6,000 tokens on this route.
+- Cost and budget for the judge are 0 on this route; the cache keeps jevos answers separate.
+- Running jevos means running a third-party pre-built binary (`jev.exe`) and model, which the
+  owner accepted. Verify the downloads against the release's `SHA256SUMS.txt`.
+- The TypeSafe routes (`openrouter`, `direct`, ...) still work: set `JEV_TRANSPORT`.
+
 ## 2026-10-05 — Full solutions may be 4096 tokens (all experiments)
 
 `generator.max_solution_tokens` 2048 -> 4096 in `configs/default.yaml`. On level-5 problems 25%

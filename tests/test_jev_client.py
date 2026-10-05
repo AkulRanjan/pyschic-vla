@@ -49,7 +49,7 @@ async def test_400_is_not_retried(respx_mock):
     assert route.call_count == 1
 
 
-@pytest.mark.parametrize("transport", sorted(PROVIDERS))
+@pytest.mark.parametrize("transport", sorted(t for t, p in PROVIDERS.items() if p.key_env))
 def test_missing_api_key_fails_at_construction_with_the_env_var_name(transport, monkeypatch):
     monkeypatch.delenv(PROVIDERS[transport].key_env, raising=False)
     with pytest.raises(JevConfigError, match=PROVIDERS[transport].key_env):
@@ -215,7 +215,8 @@ async def test_single_candidate_needs_no_choice_question(direct_judge, respx_moc
 def test_every_route_resolves_url_model_and_overrides(transport, monkeypatch):
     from thoughtzero.judge.client import resolve_route
 
-    monkeypatch.setenv(PROVIDERS[transport].key_env, "k")
+    if PROVIDERS[transport].key_env:
+        monkeypatch.setenv(PROVIDERS[transport].key_env, "k")
     client = JevClient(JudgeCfg(transport=transport))
     assert (client.url, client.model) == (PROVIDERS[transport].url, PROVIDERS[transport].model)
     custom = JudgeCfg(transport=transport, jev_model="m", jev_url="https://x.test/v1/systemone")
@@ -265,3 +266,31 @@ async def test_recorded_openrouter_response_parses(monkeypatch, tmp_path, respx_
     )
     assert value == recorded["answers"]["sound"]["noul"]
     assert priors == pytest.approx([1.0, 0.0, 0.0])  # real Jev: rounded, exact zeros
+
+
+async def test_jevos_needs_no_key_costs_nothing_and_caps_the_state(tmp_path, respx_mock):
+    """jevos: local server, no Authorization header, $0, 6,000-token state cap."""
+    import json
+
+    from thoughtzero.accounting import ledger_scope
+    from thoughtzero.judge.cache import DiskCache
+    from thoughtzero.judge.client import judge_max_state_tokens, judge_usd_per_mtok
+
+    cfg = JudgeCfg(transport="jevos")
+    assert judge_usd_per_mtok(cfg) == 0.0 and judge_max_state_tokens(cfg) == 6_000
+    assert judge_usd_per_mtok(JudgeCfg(transport="openrouter")) == pytest.approx(0.042)
+    route = respx_mock.post(PROVIDERS["jevos"].url).mock(
+        return_value=httpx.Response(200, json=REAL_RESPONSE)
+    )
+    budget_module.configure(max_usd=0.0)  # would refuse any paid call
+    try:
+        judge = JevJudge(cfg)
+        judge.cache = DiskCache(str(tmp_path / "cache"))
+        with ledger_scope() as led:
+            priors, value = await judge.prior_and_value("p", ["s"], ["a", "b", "c"])
+        assert value == 0.8 and led.jev_usd == 0.0 and led.jev_calls == 1
+        request = route.calls.last.request
+        assert "Authorization" not in request.headers
+        assert json.loads(request.content)["model"] == "jevos-v4"
+    finally:
+        budget_module.current_guard = None
