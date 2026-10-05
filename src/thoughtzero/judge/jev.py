@@ -95,7 +95,14 @@ class JevJudge:
         if budget_module.current_guard is not None:
             budget_module.current_guard.check(estimated_tokens)
 
-        answers = await self.client.ask(state, questions)
+        try:
+            answers = await self.client.ask(state, questions)
+        except Exception:
+            # release the reservation on failure (no spend), or it leaks
+            # and eventually causes false "budget exceeded" errors.
+            if budget_module.current_guard is not None:
+                budget_module.current_guard.record(0, estimated_tokens)
+            raise
 
         if budget_module.current_guard is not None:
             budget_module.current_guard.record(estimated_tokens, estimated_tokens)

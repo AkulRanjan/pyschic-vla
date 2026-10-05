@@ -9,7 +9,9 @@ import httpx
 import pytest
 
 from thoughtzero.config import JudgeCfg
+from thoughtzero.judge import budget as budget_module
 from thoughtzero.judge.client import JevClient, JevHTTPError, request_with_retry
+from thoughtzero.judge.jev import JevJudge
 
 
 @pytest.mark.respx(base_url="https://example.test")
@@ -90,3 +92,24 @@ async def test_semaphore_caps_concurrency(monkeypatch):
     questions = {"sound": {"type": "noul", "instructions": "x"}}
     await asyncio.gather(*(client.ask("s", questions) for _ in range(8)))
     assert max_in_flight <= 2
+
+
+async def test_budget_reservation_released_when_client_call_fails(monkeypatch):
+    """A failed call must not leak its reservation, or repeated failures
+    eventually trip a false BudgetExceeded for calls that never happened."""
+    from thoughtzero.judge import client as client_module
+
+    async def failing_decide(self, state, questions):
+        raise RuntimeError("simulated backend failure")
+
+    monkeypatch.setattr(client_module._LocalStubBackend, "decide", failing_decide)
+
+    budget_module.configure(max_usd=1.0, usd_per_mtok=0.042)
+    try:
+        judge = JevJudge(JudgeCfg(transport="local_stub"))
+        with pytest.raises(RuntimeError, match="simulated backend failure"):
+            await judge.step_sound("a problem never seen before", ["a step never seen before"])
+        assert budget_module.current_guard._reserved_usd == 0.0
+        assert budget_module.current_guard.spent_usd == 0.0
+    finally:
+        budget_module.current_guard = None
