@@ -18,6 +18,7 @@ dependencies = [
     "tenacity>=8.2",
     "diskcache>=5.6",
     "transformers>=4.45",
+    "jinja2>=3.1",  # transformers needs it for apply_chat_template (Gemma prompts)
     "datasets>=2.20",
     "math-verify>=0.5",
     "numpy>=1.26",
