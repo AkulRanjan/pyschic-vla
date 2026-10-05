@@ -237,3 +237,31 @@ async def test_different_models_never_share_cached_answers(monkeypatch, tmp_path
     await real.step_sound("p", ["s"])
     await other.step_sound("p", ["s"])
     assert a.call_count == 1 and b.call_count == 1
+
+
+async def test_recorded_openrouter_response_parses(monkeypatch, tmp_path, respx_mock):
+    """Replay the real response recorded by scripts/probe_jev.py through JevJudge."""
+    import json
+    from pathlib import Path
+
+    from thoughtzero.judge.cache import DiskCache
+
+    recorded = json.loads(
+        (Path(__file__).parent / "fixtures" / "jev" / "real_openrouter.json").read_text("utf-8")
+    )
+    request = recorded.pop("_request")
+    recorded.pop("_recorded")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "k")
+    judge = JevJudge(JudgeCfg(transport="openrouter"))
+    judge.cache = DiskCache(str(tmp_path / "cache"))
+    respx_mock.post(PROVIDERS["openrouter"].url).mock(
+        return_value=httpx.Response(200, json=recorded)
+    )
+    candidates = list(request["questions"]["next"]["criteria"].values())
+    priors, value = await judge.prior_and_value(
+        "What is the sum of the first 5 positive odd integers?",
+        ["The first 5 positive odd integers are 1, 3, 5, 7 and 9."],
+        candidates,
+    )
+    assert value == recorded["answers"]["sound"]["noul"]
+    assert priors == pytest.approx([1.0, 0.0, 0.0])  # real Jev: rounded, exact zeros
