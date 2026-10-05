@@ -1,0 +1,4 @@
+{
+  "error_message": "choice takes 2..255 options",
+  "error_type": "ValueError"
+}

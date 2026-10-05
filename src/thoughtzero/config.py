@@ -44,7 +44,10 @@ class GeneratorCfg(_Section):
 class JudgeCfg(_Section):
     kind: Literal["jev", "self", "prm", "uniform", "hybrid"] = "jev"
     jev_model: str = "jev-1.13.0"
-    transport: Literal["direct", "openrouter", "sdk"] = "openrouter"
+    # "local_stub": com-kotobalabs/open-jev-deberta-v3-large, self-hosted,
+    # used while the real TypeSafe waitlist/key are pending (needs team
+    # sign-off — config.py is shared, spec B2 — see docs/verified_apis.md).
+    transport: Literal["direct", "openrouter", "sdk", "local_stub"] = "local_stub"
     prior_mode: Literal["choice", "per_candidate_noul"] = "choice"
     max_concurrency: int = 16
     shuffle_options: bool = False

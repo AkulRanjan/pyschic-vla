@@ -8,21 +8,38 @@ Status values: ⬜ open · ✅ verified · ⚠️ verified, with a surprise (exp
 
 ## Jev / TypeSafe (owner: Person 2, Jagriti)
 
+**Decision (2026-10-05):** the TypeSafe direct-API waitlist and OpenRouter
+access are both still pending, so Week 1 (`JevJudge`, cache, budget) was
+built and tested against an **open-source stand-in**,
+`com-kotobalabs/open-jev-deberta-v3-large` (Apache-2.0, DeBERTa-v3-large,
+434M params), self-hosted locally (`judge.transport = "local_stub"` — added
+to `JudgeCfg`'s `transport` literal, flagged below since `config.py` is
+shared and needs team sign-off). It is **not** TypeSafe's Jev; J1–J11 below
+are resolved **for the stand-in only**, and must be re-verified once real
+access lands. Don't assume they transfer.
+
+HF-Space hosting was tried first (`hugging-apps/open-jev-deberta-v3-large-demo`,
+duplicated from `com-kotobalabs/...`) and abandoned: duplicating it requires
+an **HF PRO subscription** even on free `cpu-basic` hardware (`402 Payment
+Required`) — a real money decision, not pursued without the team. Self-hosting
+locally (CPU, no GPU needed) sidesteps that.
+
 | # | Question | Answer | Source (link) | Checked | Status |
 |---|---|---|---|---|---|
-| J1 | Does `choice` return a probability for **every** option, or only the top pick? (**critical**) | | | | ⬜ |
-| J2 | Exact request fields: `model`, `state`, `questions`, question `type`, `instructions`, options field name | | | | ⬜ |
-| J3 | Exact response shape: where answers and probabilities live for `noul` and `choice` | | | | ⬜ |
-| J4 | Is usage (input tokens) reported? | | | | ⬜ |
-| J5 | Can `jev-1.13.0` be pinned on each route (direct, OpenRouter, Cloudflare, Vercel)? | | | | ⬜ |
-| J6 | Does OpenRouter take the typed `questions` request, or a chat-style wrapper? | | | | ⬜ |
-| J7 | Rate limits (RPM / TPM / concurrency) | | | | ⬜ |
-| J8 | Max options per `choice` (spec: 255); context window (spec: 32K) | | | | ⬜ |
-| J9 | `typesafe-sdk-python` API (sync and async); do we use it or raw HTTP? | | | | ⬜ |
-| J10 | Measured latency p50 / p95 (~20 calls) | | | | ⬜ |
-| J11 | Terms of service: is publishing benchmarks or stress-testing allowed? | | | | ⬜ |
+| J1 | Does `choice` return a probability for **every** option, or only the top pick? (**critical**) | **Yes, for the stand-in**: full `probabilities` dict over every option, plus the argmax `choice` and its `confidence`. Real TypeSafe Jev: still open. | `tests/fixtures/jev/choice_4_options.json` | 2026-10-05 | ⚠️ (stand-in only) |
+| J2 | Exact request fields: `model`, `state`, `questions`, question `type`, `instructions`, options field name | For the stand-in (our own `JevClient.ask(state, questions: dict[id, {type, instructions, options?}])` contract, not TypeSafe's wire format): `type` ∈ `noul`\|`choice`\|`score`, `instructions` (str), `options` (dict, choice/score only). Real TypeSafe field names: still open — no guessing (spec §13.5). | `src/thoughtzero/judge/client.py`, `scripts/probe_open_jev.py` | 2026-10-05 | ⚠️ (stand-in only) |
+| J3 | Exact response shape: where answers and probabilities live for `noul` and `choice` | Stand-in: `{question_id: {"noul": p}}` or `{question_id: {"choice": key, "probabilities": {...}, "confidence": float}}`. Real TypeSafe: still open. | `tests/fixtures/jev/*.json` | 2026-10-05 | ⚠️ (stand-in only) |
+| J4 | Is usage (input tokens) reported? | Stand-in: no (it's a local forward pass). `JevJudge` always estimates `chars/4` itself rather than depending on a reported `usage` field, so this doesn't block anything either way. Real TypeSafe: still open. | — | 2026-10-05 | ⬜ |
+| J5 | Can `jev-1.13.0` be pinned on each route (direct, OpenRouter, Cloudflare, Vercel)? | Not applicable to the stand-in (no versioned API). Real TypeSafe: still open. | — | — | ⬜ |
+| J6 | Does OpenRouter take the typed `questions` request, or a chat-style wrapper? | Still open — access pending. | — | — | ⬜ |
+| J7 | Rate limits (RPM / TPM / concurrency) | Not applicable to the stand-in (local, no rate limit; `JevClient`'s semaphore still caps `judge.max_concurrency` to protect CPU, tested in `test_jev_client.py`). Real TypeSafe: still open. | — | — | ⬜ |
+| J8 | Max options per `choice` (spec: 255); context window (spec: 32K) | Stand-in enforces **2..255** options (`ValueError` below 2, not silently `{option: 1.0}`), 512-token context but **only the first 256 tokens of the state are read** (truncates from the end, not matching our own middle-truncation strategy — `JevJudge._truncate_steps` still runs first regardless). Real TypeSafe: still open. | `tests/fixtures/jev/choice_1_option_rejected.json`; model card | 2026-10-05 | ⚠️ (stand-in only, and the stand-in's own truncation differs from spec §5.3) |
+| J9 | `typesafe-sdk-python` API (sync and async); do we use it or raw HTTP? | Still open — no key yet to try it. | — | — | ⬜ |
+| J10 | Measured latency p50 / p95 (~20 calls) | Stand-in: sub-second per call on CPU (informal only; not yet measured p50/p95 over 20 calls). Real TypeSafe: still open. | — | — | ⬜ |
+| J11 | Terms of service: is publishing benchmarks or stress-testing allowed? | Not applicable to the stand-in (Apache-2.0, self-hosted). Real TypeSafe ToS: still open — not yet read, since we don't have an account. | — | — | ⬜ |
 
-Fixtures recorded in `tests/fixtures/jev/`: _(list them here)_
+**Fixtures recorded in `tests/fixtures/jev/`** (all from the stand-in, via `scripts/probe_open_jev.py`):
+`noul_basic.json`, `choice_4_options.json`, `choice_and_noul_together.json`, `choice_1_option_rejected.json` (model rejects a single-option `choice`), `error_bad_question_type.json` (malformed question → `KeyError`, not a typed validation error).
 
 ---
 
