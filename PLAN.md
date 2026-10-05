@@ -23,7 +23,7 @@ All code paths run end to end **offline** (mock generator and judge): `pytest` (
 | Judge: `GemmaSelfJudge` (B4), `PRMJudge` (B5) | ❌ stubs | Phase S3 |
 | Eval: runner (resumable, shardable), metrics, plots, analysis | ✅ done | Real runs |
 | Pilot: traces, Monte Carlo labels, judge scores, sensitivity, report with GO / PARTIAL / NO-GO | ✅ done | Real run |
-| GPU serving: `notebooks/colab_gemma.ipynb` (Colab, tunnelled to this machine), Kaggle fallback, `docs/gpu_setup.md` | ✅ written | Never run yet; throughput unmeasured. The laptop GPU (RTX 3050, 6 GB) is too small for Gemma E4B |
+| Generator serving: **Gemma 4 26B-A4B on OpenRouter** (`generator.api=chat`). Self-hosted alternatives kept: `notebooks/colab_gemma.ipynb`, Kaggle, `docs/gpu_setup.md` | ✅ written | Never run yet; throughput unmeasured. The laptop GPU (RTX 3050, 6 GB) is too small for Gemma E4B |
 | Smoke test (`smoke_test.py`) | ✅ mock and real paths (real path added 2026-10-05) | A Gemma server and a Jev key |
 | `results/REPORT.md` | skeleton | Filled in S7 |
 
@@ -48,6 +48,8 @@ that needs them. Write each decision down in `results/DECISIONS.md` with its dat
 | D7 | **PRM baseline (B5):** `Qwen/Qwen2.5-Math-PRM-7B` is ~15 GB in bf16 (above the 5 GB "ask first" line, and too big for one T4 next to Gemma). | S3 | Optional per spec. Skip it unless a bigger GPU is available, and say so in the report. |
 | D8 | **Jev and arithmetic.** TypeSafe's docs: *"Jev is not a calculator"*; jev-1.13 *"struggles with tasks that require numeric precision"*. Judging maths steps leans on exactly that. | S2 | Nothing to decide yet; the pilot answers it. Keep it in mind if AUROC is low, and cite it in the report. |
 | D9 | **Zero priors.** Real Jev returns choice probabilities rounded to 2 decimals, with exact 0 for options it rules out; PUCT then never explores those children, even when Jev is wrong (seen: it gave 0 to the step that catches an arithmetic slip). The spec only fills *missing* options with an epsilon. | S2 | Add a prior floor (e.g. mix 5% uniform into every prior) as a config flag, and compare it with the spec version (no floor) in the pilot or S4. |
+| D10 | **Generator = Gemma 4 26B-A4B on OpenRouter** (decided 2026-10-05; `results/DECISIONS.md`). | done | The report must describe the model as a 26B MoE with ~4B active parameters. |
+| D11 | **Branching diversity.** At T=0.9 the 26B model's next-step samples are often rephrasings (2–5 distinct of 6). | S4 | Measure distinct candidates after dedupe on the dev run; try T=1.0 (Gemma's default) on the train split. |
 
 ---
 
@@ -56,7 +58,7 @@ that needs them. Write each decision down in `results/DECISIONS.md` with its dat
 The order matters: S0 starts the slow external processes, and S3 is offline work to do
 **while waiting** for them.
 
-### S0. Unblock access (day 1) — Jev done; Colab GPU left
+### S0. Unblock access (day 1) — ✅ done
 
 Done (2026-10-05):
 - Jev client for every route that serves real jev-1.13, built from the official API
@@ -111,7 +113,11 @@ Do this while S0 is pending; it needs no keys.
 **Done when:** `make_judge` builds `self` (and `prm`, or a documented skip), with unit tests;
 `run_experiment.py --mock` still passes.
 
-### S1. Real backends and the first real smoke test (spec Phase 0)
+### S1. Real backends and the first real smoke test (spec Phase 0) — ✅ passed 2026-10-05
+
+Gemma 4 26B-A4B and Jev, both on OpenRouter: 3/3 solved, 11 Jev calls, $0.00019 Jev
+(`results/PHASE_0_NOTES.md`). The generator change is logged in `results/DECISIONS.md`.
+The steps below were the original plan, kept for reference.
 
 1. **Gemma server:** launch `notebooks/kaggle_server.ipynb` (vLLM, 4-bit QAT checkpoint,
    prefix caching; see `docs/gpu_setup.md`). Set `GEMMA_BASE_URL` / `GEMMA_MODEL`.
