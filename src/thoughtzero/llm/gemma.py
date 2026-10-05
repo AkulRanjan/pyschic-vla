@@ -86,7 +86,7 @@ class OpenAICompatibleGenerator:
     doesn't have (yet) are keyword arguments; :meth:`from_config` fills them
     from the full ``Config`` (``seed``, ``search.max_depth``).
 
-    - ``tokenizer``: defaults to ``HFChatTokenizer(tokenizer_name or cfg.model)``.
+    - ``tokenizer``: defaults to ``HFChatTokenizer(tokenizer_name or cfg.tokenizer or cfg.model)``.
       Pass ``tokenizer_name`` when ``cfg.model`` isn't an HF ID (e.g. an Ollama
       tag) or is a quantized checkpoint.
     - ``seed``: base for per-request seeds (None disables seeding).
@@ -111,7 +111,9 @@ class OpenAICompatibleGenerator:
         request_timeout_s: float = 300.0,
     ) -> None:
         self.cfg = cfg
-        self.tokenizer: ChatTokenizer = tokenizer or HFChatTokenizer(tokenizer_name or cfg.model)
+        self.tokenizer: ChatTokenizer = tokenizer or HFChatTokenizer(
+            tokenizer_name or cfg.tokenizer or cfg.model
+        )
         self.seed = seed
         self.max_depth = max_depth
         self.use_system_role = use_system_role

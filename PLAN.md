@@ -23,7 +23,7 @@ All code paths run end to end **offline** (mock generator and judge): `pytest` (
 | Judge: `GemmaSelfJudge` (B4), `PRMJudge` (B5) | ❌ stubs | Phase S3 |
 | Eval: runner (resumable, shardable), metrics, plots, analysis | ✅ done | Real runs |
 | Pilot: traces, Monte Carlo labels, judge scores, sensitivity, report with GO / PARTIAL / NO-GO | ✅ done | Real run |
-| GPU serving: `notebooks/kaggle_server.ipynb`, `docs/gpu_setup.md` | ✅ written | Never launched; throughput unmeasured. The laptop GPU (RTX 3050, 6 GB) is too small for Gemma E4B (4-bit needs ~11.5 GB): use Kaggle |
+| GPU serving: `notebooks/colab_gemma.ipynb` (Colab, tunnelled to this machine), Kaggle fallback, `docs/gpu_setup.md` | ✅ written | Never run yet; throughput unmeasured. The laptop GPU (RTX 3050, 6 GB) is too small for Gemma E4B |
 | Smoke test (`smoke_test.py`) | ✅ mock and real paths (real path added 2026-10-05) | A Gemma server and a Jev key |
 | `results/REPORT.md` | skeleton | Filled in S7 |
 
@@ -56,7 +56,7 @@ that needs them. Write each decision down in `results/DECISIONS.md` with its dat
 The order matters: S0 starts the slow external processes, and S3 is offline work to do
 **while waiting** for them.
 
-### S0. Unblock access (day 1) — Jev done; Kaggle left
+### S0. Unblock access (day 1) — Jev done; Colab GPU left
 
 Done (2026-10-05):
 - Jev client for every route that serves real jev-1.13, built from the official API
@@ -64,7 +64,9 @@ Done (2026-10-05):
   (jev-chat/jev-chat-jarvis). Facts and sources: `docs/verified_apis.md`.
 - `.env` created from `.env.example` (git-ignored); `scripts/probe_jev.py` checks a route.
 - Real `smoke_test.py` path; Kaggle notebook passes the route and its key from Kaggle secrets.
-- GPU decision: Kaggle T4 (the laptop's 6 GB GPU can't hold Gemma E4B).
+- GPU decision: **Google Colab** (the laptop's 6 GB GPU can't hold Gemma E4B):
+  `notebooks/colab_gemma.ipynb` serves Gemma and tunnels it to this machine
+  (`docs/gpu_setup.md`). Kaggle tooling (`scripts/kaggle_run.py`) stays as a fallback.
 
 Also done: OpenRouter key in `.env` (`JEV_TRANSPORT=openrouter`); `probe_jev.py` passed
 (answered by `typesafe/jev-1.13-20260917`), and 17 more calls measured latency (p50 406 ms)
@@ -77,11 +79,12 @@ Your steps:
    `JEV_TRANSPORT=<route>` in `.env`.
 2. Check it (one call, ~$0.00002): `python scripts/probe_jev.py --record`. This also records a
    real response as a test fixture; commit it.
-3. **Kaggle**: account with phone verification (needed for GPU), note the weekly GPU quota
-   (row D5 in `docs/verified_apis.md`), and add the same key as a Kaggle secret.
+3. **Colab**: open `notebooks/colab_gemma.ipynb` in Colab (badge at the top), choose a GPU
+   runtime, Run all, and paste the four printed lines into `.env`.
 4. Read TypeSafe's Master Customer Agreement (J11): may benchmark results be published?
 
-**Done when:** `probe_jev.py` passes on a TypeSafe route, and Kaggle GPU access works.
+**Done when:** `probe_jev.py` passes on a TypeSafe route (done), and the Colab notebook
+serves Gemma with sane output.
 
 ### S3 first. Alternative judges (days 1–4, offline; spec Phase 3 needs them)
 
@@ -116,8 +119,8 @@ Do this while S0 is pending; it needs no keys.
      which `GemmaSelfJudge` needs.
 2. **Jev** is already implemented (S0). Once `probe_jev.py --record` has a real response,
    update the ⚠️ rows (J4–J6) in `docs/verified_apis.md` and measure latency (J10).
-3. Smoke test, in the Kaggle notebook (set `SCRIPT` to the real command):
-   `python scripts/smoke_test.py --n-sims 4 --k 3 --tokenizer google/gemma-4-E4B-it`.
+3. Smoke test, locally against the Colab tunnel: `python scripts/smoke_test.py --n-sims 4 --k 3`
+   (or `MODE = "in_colab"` in the notebook).
 
 **Done when** (spec Phase 0): ≥ 1 of 3 easy problems solved, ≤ 20 Jev calls, ≤ $0.01, and
 the Jev and Gemma VERIFY rows are ✅. Write `results/PHASE_0_NOTES.md`.
