@@ -5,10 +5,10 @@ import json
 import pytest
 
 from thoughtzero.accounting import record_gemma, record_jev
-from thoughtzero.config import Config, load_config
+from thoughtzero.config import load_config
 from thoughtzero.eval import analysis
 from thoughtzero.eval.cli import mock_problems
-from thoughtzero.eval.methods import MethodUnavailable, build_method, parse_method_spec
+from thoughtzero.eval.methods import build_method, load_stored_samples, parse_method_spec
 from thoughtzero.eval.runner import (
     ROWS_FILE,
     CostConfirmationRequired,
@@ -244,8 +244,11 @@ def test_config_overrides():
 
 
 def test_method_specs():
-    assert parse_method_spec("tz") == ("tz", None)
-    assert parse_method_spec("sc:8") == ("sc", 8)
+    assert parse_method_spec("tz") == ("tz", None, None)
+    assert parse_method_spec("sc:8") == ("sc", 8, None)
+    assert parse_method_spec("sc:8/64") == ("sc", 8, 64)
+    with pytest.raises(ValueError):
+        parse_method_spec("sc:8/4")
     with pytest.raises(KeyError):
         parse_method_spec("nope")
     with pytest.raises(ValueError):
@@ -268,9 +271,36 @@ def test_tz_through_runner_on_mocks(tmp_path):
     assert diag["n_with_stats"] == 3 and diag["mean_expansions"] > 0
 
 
-def test_unlanded_baselines_are_reported_not_crashed():
-    with pytest.raises(MethodUnavailable, match="Person 3"):
-        build_method("sc:4", Config(), MockGenerator(), mock=True)
+def test_baselines_through_runner_and_sample_curves(tmp_path):
+    c = cfg()
+    probs = mock_problems(3)
+    cot = build_method("cot", c, MockGenerator(), mock=True)
+    sc = build_method("sc:2/4", c, MockGenerator(), mock=True)
+    run([cot, sc], probs, tmp_path / "b2", c=c)
+    rows = read_jsonl(tmp_path / "b2" / ROWS_FILE)
+    assert {r["method_id"] for r in rows} == {"cot", "sc[n=2]"}
+    assert not any(r["error"] for r in rows)
+    for r in (r for r in rows if r["method"] == "sc"):
+        # the ledger paid for all 4 samples; the compute axis counts only the 2 that voted
+        assert r["compute_tokens"] == r["raw"]["completion_tokens_at_n"]
+        assert 0 < r["compute_tokens"] < r["gemma_completion_tokens"]
+
+    # B3 reranks B2's stored samples: Jev only, no new Gemma tokens
+    stored = load_stored_samples(tmp_path / "b2")
+    assert set(stored) == {p.id for p in probs}
+    bon = build_method("bon:2/4", c, MockGenerator(), mock=True, stored_samples=stored)
+    run([bon], probs, tmp_path / "b3", c=c)
+    b3 = read_jsonl(tmp_path / "b3" / ROWS_FILE)
+    assert all(r["raw"]["reused_samples"] and r["gemma_completion_tokens"] == 0 for r in b3)
+    assert all(r["compute_tokens"] > 0 and r["jev_calls"] == 4 for r in b3)
+
+    curves = analysis.expand_sample_curves(rows + b3, [1, 2, 4, 8], TOOLS.grade)
+    ids = {r["method_id"] for r in curves}
+    assert ids == {"cot", "sc[n=1]", "sc[n=2]", "sc[n=4]", "bon[n=1]", "bon[n=2]", "bon[n=4]"}
+    by = analysis.rows_by_method(curves)
+    tok = [sum(r["compute_tokens"] for r in by[f"sc[n={n}]"]) for n in (1, 2, 4)]
+    assert tok[0] < tok[1] < tok[2]  # cost grows with N; n=8 > 4 stored is skipped
+    assert all(r["derived_from"] == "bon[n=2]" for r in by["bon[n=4]"])
 
 
 def test_jev_estimate():

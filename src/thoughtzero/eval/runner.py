@@ -13,6 +13,10 @@ Guarantees:
 - Error isolation: an exception writes a flagged error row and the run goes on.
   `BudgetExceeded` is the exception: it stops the whole run cleanly.
 - Every problem runs in its own `ledger_scope()`, so ledgers never mix.
+
+Compute axis: `compute_tokens` per row is the Gemma completion tokens the method's answer
+cost. It equals the ledger's `gemma_completion_tokens`, unless the method reports
+`raw["completion_tokens_at_n"]` (B2 voting N of M stored samples, B3 reusing B2's samples).
 """
 
 from __future__ import annotations
@@ -111,6 +115,11 @@ def read_jsonl(path: Path) -> list[dict[str, Any]]:
                     f"{path}:{i}: skipping unparseable line", RuntimeWarning, stacklevel=2
                 )
     return rows
+
+
+def compute_tokens(row: dict[str, Any]) -> int:
+    """Primary compute axis for one row (see module docstring)."""
+    return int(row.get("compute_tokens", row.get("gemma_completion_tokens", 0)))
 
 
 def row_key(row: dict[str, Any]) -> tuple[str, str]:
@@ -329,6 +338,9 @@ async def run_method(
                 correct=correct,
                 error=grade_err,
                 flagged=grade_err is not None,
+                compute_tokens=int(
+                    res.raw.get("completion_tokens_at_n", led.gemma_completion_tokens)
+                ),
                 **led.to_dict(),
                 timestamp=_now(),
                 raw=res.raw,
@@ -340,6 +352,7 @@ async def run_method(
                 correct=False,
                 error=f"{type(err).__name__}: {err}",
                 flagged=True,
+                compute_tokens=led.gemma_completion_tokens,
                 **led.to_dict(),
                 timestamp=_now(),
                 raw={"traceback": "".join(traceback.format_exception(err))[-4000:]},
@@ -437,7 +450,7 @@ def summarize(
     for mid in sorted(by):
         rs = by[mid]
         corr = [bool(r["correct"]) for r in rs]
-        ct = np.array([r.get("gemma_completion_tokens", 0) for r in rs], dtype=float)
+        ct = np.array([compute_tokens(r) for r in rs], dtype=float)
         pt = np.array([r.get("gemma_prompt_tokens", 0) for r in rs], dtype=float)
         jc = np.array([r.get("jev_calls", 0) for r in rs], dtype=float)
         ju = np.array([r.get("jev_usd", 0.0) for r in rs], dtype=float)

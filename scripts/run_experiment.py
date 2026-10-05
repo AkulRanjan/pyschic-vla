@@ -4,8 +4,11 @@
         --set "eval.methods=[tz]" --set search.n_simulations=16 --run-id tz16_math500 \\
         [--subset full|dev|ablation] [--shard 0/3] [--yes]
 
-    # self-consistency with N=8 samples, best-of-4:
-    python scripts/run_experiment.py --set "eval.methods=['sc:8','bon:4']" --run-id sc8_bon4
+    # B2 once with 64 samples (every N <= 64 is derived later by make_plots --sample-ns):
+    python scripts/run_experiment.py --set "eval.methods=['sc:64']" --run-id sc64_math500
+    # B3 reranking B2's stored samples (no new GPU time, only Jev):
+    python scripts/run_experiment.py --set "eval.methods=['bon:64']" --run-id bon64_math500 \
+        --reuse-samples results/sc64_math500
 
     # ablation variant (configs/ablations.yaml):
     python scripts/run_experiment.py --config configs/ablations.yaml --subset ablation \\
@@ -26,7 +29,12 @@ import sys
 from pathlib import Path
 
 from thoughtzero.eval.cli import SUBSETS, add_run_args, fmt_summary, load_problems, setup
-from thoughtzero.eval.methods import MethodUnavailable, build_generator, build_methods
+from thoughtzero.eval.methods import (
+    MethodUnavailable,
+    build_generator,
+    build_methods,
+    load_stored_samples,
+)
 from thoughtzero.eval.runner import (
     CostConfirmationRequired,
     check_cost,
@@ -52,6 +60,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--retry-errors", action="store_true", help="re-run errored problems")
     parser.add_argument("--merge", nargs="+", metavar="RUN_DIR", help="merge into --run-id")
     parser.add_argument("--allow-mixed-config", action="store_true")
+    parser.add_argument(
+        "--reuse-samples", metavar="RUN_DIR", help="B2 run whose samples B3 reranks"
+    )
     args = parser.parse_args(argv)
     cfg = setup(args)
     run_id = args.run_id or cfg.eval.run_id
@@ -68,9 +79,15 @@ def main(argv: list[str] | None = None) -> int:
     problems = load_problems(cfg, args.subset, mock=args.mock)
     tools = mock_toolkit() if args.mock else real_toolkit()
     generator = build_generator(cfg, mock=args.mock)
+    stored = load_stored_samples(args.reuse_samples) if args.reuse_samples else None
     try:
         methods = build_methods(
-            cfg.eval.methods, cfg, generator, mock=args.mock, tools=tools if args.mock else None
+            cfg.eval.methods,
+            cfg,
+            generator,
+            mock=args.mock,
+            tools=tools if args.mock else None,
+            stored_samples=stored,
         )
     except MethodUnavailable as e:
         print(f"ERROR: {e}", file=sys.stderr)

@@ -1,6 +1,6 @@
 """Registry: method spec -> ``eval.runner.Method`` (SPEC.md §8.1). Owner: Person 4 (Harjas).
 
-A method spec in ``eval.methods`` is ``name`` or ``name:N``:
+A method spec in ``eval.methods`` is ``name``, ``name:N`` or ``name:N/M``:
 
 | spec        | what                                       | compute knob                 |
 |-------------|--------------------------------------------|------------------------------|
@@ -9,6 +9,7 @@ A method spec in ``eval.methods`` is ``name`` or ``name:N``:
 | ``tz_prm``  | B5: MCTS, self-judge prior + PRM value     | ``search.n_simulations``     |
 | ``cot``     | B1: greedy chain-of-thought                | -                            |
 | ``sc:N``    | B2: self-consistency over N samples        | N                            |
+| ``sc:N/M``  | B2, voting N of M stored samples           | N (M kept for post-hoc curve)|
 | ``bon:N``   | B3: best-of-N by ``judge.final_correct``   | N                            |
 | ``c31b``    | C: greedy CoT on the configured generator  | run it with the 31B endpoint |
 
@@ -16,11 +17,14 @@ Ablations (prior-only, value-only, k, c_puct, ...) are ``tz`` with a config vari
 (``configs/ablations.yaml`` + ``--variant``), not separate names.
 
 ``params`` label points on the accuracy-vs-compute plot and keep compute levels apart inside one
-run folder (``method_id`` = ``name[param=value]``).
+run folder (``method_id`` = ``name[param=value]``). With ``M > N``, ``raw`` keeps all M samples,
+so ``eval.analysis.expand_sample_curves`` can evaluate every N' <= M without new GPU time.
+B3 can reuse B2's stored samples (``stored_samples``) instead of sampling again.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -43,16 +47,23 @@ SAMPLED = {"sc", "bon"}  # require ":N"
 KNOWN = [*TZ_JUDGES, "cot", "sc", "bon", "c31b"]
 
 
-def parse_method_spec(spec: str) -> tuple[str, int | None]:
-    """``"sc:8"`` -> ``("sc", 8)``; ``"tz"`` -> ``("tz", None)``."""
-    name, _, n = spec.strip().partition(":")
+def parse_method_spec(spec: str) -> tuple[str, int | None, int | None]:
+    """``"sc:8/64"`` -> ``("sc", 8, 64)``; ``"sc:8"`` -> ``("sc", 8, None)``; ``"tz"`` ->
+    ``("tz", None, None)``."""
+    name, _, rest = spec.strip().partition(":")
     if name not in KNOWN:
         raise KeyError(f"unknown method {name!r}; known: {KNOWN}")
-    if name in SAMPLED and not n:
+    if name in SAMPLED and not rest:
         raise ValueError(f"{name} needs a sample count, e.g. '{name}:8'")
-    if n and name not in SAMPLED:
+    if rest and name not in SAMPLED:
         raise ValueError(f"{name} takes no ':N' (its compute is set in the config)")
-    return name, (int(n) if n else None)
+    if not rest:
+        return name, None, None
+    n_text, _, m_text = rest.partition("/")
+    n, n_max = int(n_text), (int(m_text) if m_text else None)
+    if n < 1 or (n_max is not None and n_max < n):
+        raise ValueError(f"bad sample counts in {spec!r}: need 1 <= N <= M")
+    return name, n, n_max
 
 
 def judge_uses_jev(jcfg: JudgeCfg) -> bool:
@@ -81,7 +92,7 @@ def build_judge(jcfg: JudgeCfg, *, seed: int = 0, mock: bool = False) -> Judge:
 
     try:
         return make_judge(jcfg)
-    except NotImplementedError as e:
+    except (NotImplementedError, ValueError, TypeError) as e:  # stub / unknown kind / old API
         raise MethodUnavailable(f"judge kind={jcfg.kind!r} not available yet: {e}") from e
 
 
@@ -124,17 +135,21 @@ class TZMethod:
 # --------------------------------------------------------------------------- registry
 
 
-def _baseline(module: str, cls_name: str, **kwargs: Any) -> Method:
-    """Instantiate Person 3's baseline class ``cls(generator=..., cfg=..., [judge=..., n=...])``."""
-    import importlib
+def token_counter(generator: Generator, *, mock: bool = False) -> Callable[[str], int]:
+    """The generator's own tokenizer (the paper's compute axis); approximate only for mocks."""
+    tok = getattr(generator, "tokenizer", None)
+    if tok is not None:
+        return tok.count_tokens
+    if mock:
+        from thoughtzero.llm.tokenize import ApproxTokenizer
 
-    cls: Any = getattr(importlib.import_module(module), cls_name)
-    try:
-        return cls(**kwargs)
-    except TypeError as e:
-        raise MethodUnavailable(
-            f"{module}.{cls_name} does not accept {sorted(kwargs)} yet (Person 3): {e}"
-        ) from e
+        return ApproxTokenizer().count_tokens
+    raise MethodUnavailable("generator has no tokenizer to count completion tokens")
+
+
+def where_c_ran(cfg: Config) -> str:
+    """SPEC.md §8.1: record where C ran (model and endpoint; never a key)."""
+    return f"{cfg.generator.model} @ {cfg.generator.base_url}"
 
 
 def build_method(
@@ -144,36 +159,44 @@ def build_method(
     *,
     mock: bool = False,
     tools: Toolkit | None = None,
+    stored_samples: Mapping[str, Any] | None = None,
 ) -> Method:
-    """Build one method from its spec. ``tools`` overrides extraction (mock runs, tests)."""
-    name, n = parse_method_spec(spec)
+    """Build one method from its spec.
+
+    ``tools`` overrides answer extraction (mock runs, tests). ``stored_samples`` maps problem
+    id -> ``SCSamples`` from a B2 run, so B3 reranks them instead of sampling again.
+    """
+    name, n, n_max = parse_method_spec(spec)
     m: Any
     if name in TZ_JUDGES:
         jcfg = cfg.judge.model_copy(update=TZ_JUDGES[name])
         judge = build_judge(jcfg, seed=cfg.seed, mock=mock)
-        m = TZMethod(generator, judge, cfg, tools, name=name, uses_jev=judge_uses_jev(jcfg))
-        return m
-    if name in ("cot", "c31b"):
-        m = _baseline("thoughtzero.baselines.cot", "ChainOfThought", generator=generator, cfg=cfg)
+        return TZMethod(generator, judge, cfg, tools, name=name, uses_jev=judge_uses_jev(jcfg))
+
+    from thoughtzero.baselines.best_of_n import BestOfN
+    from thoughtzero.baselines.cot import ChainOfThought
+    from thoughtzero.baselines.self_consistency import SelfConsistency
+
+    if name == "cot":
+        m = ChainOfThought(generator, name="cot")
+        m.params, m.uses_jev = {}, False
+    elif name == "c31b":
+        m = ChainOfThought(generator, where=where_c_ran(cfg), name="c31b")
         m.params, m.uses_jev = {}, False
     elif name == "sc":
-        m = _baseline(
-            "thoughtzero.baselines.self_consistency",
-            "SelfConsistency",
-            generator=generator,
-            cfg=cfg,
-            n=n,
-        )
+        assert n is not None
+        m = SelfConsistency(generator, n, token_counter(generator, mock=mock), n_max=n_max)
         m.params, m.uses_jev = {"n": n}, False
     else:  # bon
+        assert n is not None
         judge = build_judge(cfg.judge, seed=cfg.seed, mock=mock)
-        m = _baseline(
-            "thoughtzero.baselines.best_of_n",
-            "BestOfN",
+        m = BestOfN(
+            judge,
+            n,
             generator=generator,
-            judge=judge,
-            cfg=cfg,
-            n=n,
+            count_tokens=token_counter(generator, mock=mock),
+            stored=stored_samples,
+            n_max=n_max,
         )
         m.params, m.uses_jev = {"n": n}, judge_uses_jev(cfg.judge)
     m.name = name  # the registry name is the canonical name in results
@@ -187,5 +210,23 @@ def build_methods(
     *,
     mock: bool = False,
     tools: Toolkit | None = None,
+    stored_samples: Mapping[str, Any] | None = None,
 ) -> list[Method]:
-    return [build_method(s, cfg, generator, mock=mock, tools=tools) for s in specs]
+    return [
+        build_method(s, cfg, generator, mock=mock, tools=tools, stored_samples=stored_samples)
+        for s in specs
+    ]
+
+
+def load_stored_samples(run_dir: str, method: str = "sc") -> dict[str, Any]:
+    """problem id -> ``SCSamples`` from a finished B2 run folder (for B3 reuse)."""
+    from pathlib import Path
+
+    from thoughtzero.baselines.self_consistency import SCSamples
+    from thoughtzero.eval.runner import ROWS_FILE, dedupe_rows, read_jsonl
+
+    out: dict[str, Any] = {}
+    for r in dedupe_rows(read_jsonl(Path(run_dir) / ROWS_FILE)):
+        if r["method"] == method and not r.get("error") and "answers" in (r.get("raw") or {}):
+            out[r["problem_id"]] = SCSamples.from_raw(r["raw"])
+    return out

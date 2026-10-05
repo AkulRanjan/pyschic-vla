@@ -21,7 +21,7 @@ from thoughtzero.eval.metrics import (
     paired_bootstrap_diff,
     search_diagnostics,
 )
-from thoughtzero.eval.runner import ROWS_FILE, dedupe_rows, read_jsonl
+from thoughtzero.eval.runner import ROWS_FILE, compute_tokens, dedupe_rows, read_jsonl
 
 Row = dict[str, Any]
 
@@ -105,9 +105,7 @@ def points(rows: Sequence[Row], n_boot: int = 1000, seed: int = 0) -> list[Row]:
                 "accuracy": accuracy(corr),
                 "ci_lo": lo,
                 "ci_hi": hi,
-                "mean_completion_tokens": float(
-                    np.mean([r.get("gemma_completion_tokens", 0) for r in rs])
-                ),
+                "mean_completion_tokens": float(np.mean([compute_tokens(r) for r in rs])),
                 "mean_wall_time_s": float(np.mean([r.get("wall_time_s", 0.0) for r in rs])),
                 "jev_usd": float(np.sum([r.get("jev_usd", 0.0) for r in rs])),
             }
@@ -120,10 +118,52 @@ def tz_tokens_per_nsim(rows: Sequence[Row], method: str = "tz") -> dict[int, flo
     out: dict[int, list[float]] = {}
     for r in rows:
         if r["method"] == method and "n_simulations" in (r.get("params") or {}):
-            out.setdefault(int(r["params"]["n_simulations"]), []).append(
-                r.get("gemma_completion_tokens", 0)
-            )
+            out.setdefault(int(r["params"]["n_simulations"]), []).append(compute_tokens(r))
     return {k: float(np.mean(v)) for k, v in sorted(out.items())}
+
+
+def expand_sample_curves(
+    rows: Sequence[Row],
+    ns: Sequence[int],
+    grade: Callable[[str | None, str], bool],
+    methods: Sequence[str] = ("sc", "bon"),
+) -> list[Row]:
+    """Replace each B2/B3 row by one derived row per N in ``ns`` (N <= samples stored).
+
+    One run of ``sc:N/M`` keeps all M samples in ``raw``, so every N' <= M is evaluated from the
+    JSONL with Person 3's ``curve`` functions, at no GPU cost. Derived rows get
+    ``params={"n": N'}``, ``compute_tokens`` = tokens of the first N' samples, and are regraded
+    with ``grade``. Jev USD of a B3 row is pro-rated by N'/M. Other rows pass through.
+    """
+    from thoughtzero.baselines import best_of_n, self_consistency
+
+    out: list[Row] = []
+    for r in rows:
+        raw = r.get("raw") or {}
+        if r["method"] not in methods or r.get("error") or "answers" not in raw:
+            out.append(r)
+            continue
+        samples = self_consistency.SCSamples.from_raw(raw)
+        valid = [n for n in ns if 1 <= n <= len(samples)]
+        if r["method"] == "bon":
+            pts = best_of_n.curve(samples, raw["scores"], valid)
+        else:
+            pts = self_consistency.curve(samples, valid)
+        for n, (answer, tokens) in pts.items():
+            d = {k: v for k, v in r.items() if k != "raw"}
+            d.update(
+                params={"n": n},
+                method_id=f"{r['method']}[n={n}]",
+                answer=answer,
+                correct=bool(grade(answer, r["gold"])),
+                compute_tokens=int(tokens),
+                derived_from=mid(r),
+                raw={},
+            )
+            if r["method"] == "bon":
+                d["jev_usd"] = float(r.get("jev_usd", 0.0)) * n / len(samples)
+            out.append(d)
+    return dedupe_rows(out)
 
 
 def nearest_by_compute(target_tokens: float, candidates: Sequence[Row]) -> Row | None:

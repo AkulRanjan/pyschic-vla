@@ -30,6 +30,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="plot even if methods cover different problem sets (comparisons still refuse)",
     )
+    ap.add_argument(
+        "--sample-ns",
+        default=None,
+        help="comma list, e.g. 1,2,4,8,16,32,64: derive B2/B3 points from stored samples",
+    )
     ap.add_argument("--n-boot", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args(argv)
@@ -40,6 +45,11 @@ def main(argv: list[str] | None = None) -> int:
     if not rows:
         print("no rows found", file=sys.stderr)
         return 1
+    if args.sample_ns:
+        from thoughtzero.data.grading import is_equivalent
+
+        ns = [int(x) for x in args.sample_ns.split(",")]
+        rows = analysis.expand_sample_curves(rows, ns, is_equivalent)
     by_source: dict[str, list[dict]] = {}
     for r in rows:
         by_source.setdefault(r["source"], []).append(r)
