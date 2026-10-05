@@ -52,6 +52,8 @@ that needs them. Write each decision down in `results/DECISIONS.md` with its dat
 | D10 | **Generator = Gemma 4 26B-A4B on OpenRouter** (decided 2026-10-05; `results/DECISIONS.md`). | done | The report must describe the model as a 26B MoE with ~4B active parameters. |
 | D11 | **Branching diversity.** At T=0.9 the 26B model's next-step samples are often rephrasings (2–5 distinct of 6). | S4 | Measure distinct candidates after dedupe on the dev run; try T=1.0 (Gemma's default) on the train split. |
 | D12 | **Self-judge quality (B4).** Real Gemma 26B as judge: yes/no answers are all-or-nothing (1.000 / 0.000), it rated an arithmetic slip and the resulting wrong answer 1.000, and on a close call its priors flipped between runs (0.55/0.40 vs 0.26/0.71). Its priors after an obvious slip were good. | S2 | The pilot measures it next to Jev (`--judges jev,self`); no change needed before then. |
+| D13 | **Pilot difficulty.** Gemma 26B solved 5/5 random MATH train problems, and every prefix got labelled correct, so AUROC was undefined. On level-5 problems it solved 65% (20-problem sample), giving incorrect prefixes. | S2 | **Set:** `pilot.levels: [5]` and `generator.max_solution_tokens: 4096` in `configs/pilot.yaml` (2026-10-05); the report must say the pilot covers hard problems only. |
+| D14 | **No cap on Gemma spend.** `BudgetGuard` caps Jev only; hosted Gemma is billed per token. | S2 | Set a credit limit on the OpenRouter key; estimate every run first. A Gemma budget guard could be added later. |
 
 ---
 
@@ -141,6 +143,12 @@ The steps below were the original plan, kept for reference.
 the Jev and Gemma VERIFY rows are ✅. Write `results/PHASE_0_NOTES.md`.
 
 ### S2. Pilot: can Jev judge reasoning steps? (spec Phase 1, the go/no-go gate)
+
+**Status 2026-10-05:** pipeline checked end to end on real models (5 random + 20 level-5 MATH
+train problems). Blocked on **OpenRouter credit** (the free allowance ran out mid-sample:
+HTTP 402). Full run estimate ≈ **$3–4** (≈ 11,200 Gemma label completions at ~550 output +
+~800 input tokens; Jev + self-judge scoring ≈ $0.25). Needs approval (> $1). Re-runs resume:
+failed rows are retried, finished rows skipped.
 
 ```bash
 python scripts/run_pilot.py --stage traces                    # GPU: 200 greedy solutions

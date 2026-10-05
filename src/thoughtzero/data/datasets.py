@@ -247,8 +247,12 @@ def pilot_subset(
     seed: int = 0,
     split: str = "test",
     problems: Sequence[Problem] | None = None,
+    levels: Sequence[int] | None = None,
 ) -> list[Problem]:
     """The 200-problem pilot set, stratified by level (spec §7).
+
+    ``levels`` keeps only those MATH levels (e.g. ``[5]``): a strong generator solves most
+    easy problems, leaving too few incorrect prefixes to measure a judge (PLAN.md D13).
 
     ``split`` matches ``PilotCfg.source_split``. ``"test"`` (MATH-500) follows
     the spec. ``"train"`` (Hendrycks MATH train) is open decision B11.1 (avoid
@@ -258,6 +262,8 @@ def pilot_subset(
         raise ValueError(f"split must be 'test' or 'train', got {split!r}")
     if problems is None:
         problems = load_math500() if split == "test" else load_math_train()
+    if levels:
+        problems = [p for p in problems if p.level in set(levels)]
     return stratified_subset(problems, n, seed)
 
 

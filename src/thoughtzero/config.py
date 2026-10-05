@@ -87,6 +87,9 @@ class SearchCfg(_Section):
     max_depth: int = 20
     extract_mode: Literal["most_visited", "value_vote"] = "most_visited"
     root_dirichlet_alpha: float | None = None
+    # Mix this share of uniform into every expansion's priors: p -> (1 - f) p + f / k, so a
+    # candidate the judge gives exactly 0 can still be explored (PLAN D9). 0 = spec.
+    prior_floor: float = Field(default=0.0, ge=0.0, le=1.0)
     dedupe_jaccard: float | None = 0.9
 
 
@@ -110,6 +113,7 @@ class PilotCfg(_Section):
     n_problems: int = 200
     # SPEC.md §7 uses MATH-500 ("test"); B11.1 proposes "train" to avoid leakage (team decides)
     source_split: str = "test"
+    levels: list[int] | None = None  # e.g. [5]: harder problems only (PLAN.md D13)
     max_prefixes: int = 8
     m_completions: int = 8
     temperature: float = 0.7

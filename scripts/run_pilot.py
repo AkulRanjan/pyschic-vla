@@ -45,7 +45,9 @@ def load_pilot_problems(cfg: Config, mock: bool) -> list[Problem]:
         return mock_problems(min(cfg.pilot.n_problems, 12), source="toypilot")
     from thoughtzero.data.datasets import pilot_subset
 
-    return pilot_subset(cfg.pilot.n_problems, cfg.seed, split=cfg.pilot.source_split)
+    return pilot_subset(
+        cfg.pilot.n_problems, cfg.seed, split=cfg.pilot.source_split, levels=cfg.pilot.levels
+    )
 
 
 def estimate_jev_usd(

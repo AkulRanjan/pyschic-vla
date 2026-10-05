@@ -145,3 +145,16 @@ def test_pilot_subset_split_matches_pilot_cfg() -> None:
     # PilotCfg.source_split is "test" (MATH-500, per spec) or "train" (B11.1 proposal).
     with pytest.raises(ValueError):
         ds.pilot_subset(n=5, split="validation")
+
+
+def test_pilot_subset_can_keep_only_some_levels() -> None:
+    from thoughtzero.data.datasets import pilot_subset
+    from thoughtzero.types import Problem
+
+    probs = [
+        Problem(id=f"p{i}", question="q", answer="1", source="t", level=1 + i % 5)
+        for i in range(50)
+    ]
+    sub = pilot_subset(5, 0, split="train", problems=probs, levels=[5])
+    assert len(sub) == 5 and all(p.level == 5 for p in sub)
+    assert len(pilot_subset(50, 0, split="train", problems=probs)) == 50  # default: all levels

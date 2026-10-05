@@ -182,3 +182,22 @@ def test_make_child() -> None:
     assert child.terminal and child.final_answer == "13" and child.prior == 0.4
     capped = make_child(parent, "keep going", 0.4, 2, toy_extract_answer)
     assert capped.terminal and capped.final_answer is None
+
+
+class ZeroPriorJudge(MockJudge):
+    """Puts all prior mass on the misleading "+5" step, exact zeros elsewhere (like real Jev)."""
+
+    async def prior_and_value(
+        self, problem: str, steps: list[str], candidates: list[str]
+    ) -> tuple[list[float], float]:
+        _, value = await super().prior_and_value(problem, steps, candidates)
+        return [1.0 if "add 5" in c else 0.0 for c in candidates], value
+
+
+async def test_prior_floor_lets_search_explore_zero_prior_children() -> None:
+    plain = await run(n=48, judge=ZeroPriorJudge(), extract_mode="value_vote")
+    floored = await run(n=48, judge=ZeroPriorJudge(), extract_mode="value_vote", prior_floor=0.3)
+    root_plain = {c.steps[-1]: c.N for c in plain.root.children}
+    root_floor = {c.steps[-1]: c.N for c in floored.root.children}
+    assert all(n == 0 for s, n in root_plain.items() if "add 5" not in s)  # never explored
+    assert all(n > 0 for n in root_floor.values())  # the floor reaches every child
