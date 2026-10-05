@@ -43,10 +43,10 @@ async def test_400_is_not_retried(respx_mock):
     assert route.call_count == 1
 
 
-async def test_direct_transport_raises_not_implemented_with_pointer_to_docs():
-    client = JevClient(JudgeCfg(transport="direct"))
+@pytest.mark.parametrize("transport", ["direct", "openrouter", "sdk"])
+def test_unimplemented_transport_raises_at_construction(transport):
     with pytest.raises(NotImplementedError, match="verified_apis"):
-        await client.ask("state", {"q": {"type": "noul", "instructions": "x"}})
+        JevClient(JudgeCfg(transport=transport))
 
 
 async def test_local_stub_maps_question_ids_to_answers(monkeypatch):

@@ -12,11 +12,16 @@ Status values: ⬜ open · ✅ verified · ⚠️ verified, with a surprise (exp
 access are both still pending, so Week 1 (`JevJudge`, cache, budget) was
 built and tested against an **open-source stand-in**,
 `com-kotobalabs/open-jev-deberta-v3-large` (Apache-2.0, DeBERTa-v3-large,
-434M params), self-hosted locally (`judge.transport = "local_stub"` — added
-to `JudgeCfg`'s `transport` literal, flagged below since `config.py` is
-shared and needs team sign-off). It is **not** TypeSafe's Jev; J1–J11 below
-are resolved **for the stand-in only**, and must be re-verified once real
-access lands. Don't assume they transfer.
+434M params), self-hosted locally. It is **not** TypeSafe's Jev; J1–J11
+below are resolved **for the stand-in only**, and must be re-verified once
+real access lands. Don't assume they transfer.
+
+The stand-in is **opt-in only**: `--set judge.transport=local_stub`. The
+default transport stays `openrouter`, which isn't implemented yet, so
+`make_judge(kind="jev")` raises `NotImplementedError` and eval/pilot skip it
+("not available yet") instead of silently measuring the stand-in. Whether
+any pilot/CP1 run may use the stand-in is a protocol decision for the team
+(SPEC.md §7), not a default.
 
 HF-Space hosting was tried first (`hugging-apps/open-jev-deberta-v3-large-demo`,
 duplicated from `com-kotobalabs/...`) and abandoned: duplicating it requires

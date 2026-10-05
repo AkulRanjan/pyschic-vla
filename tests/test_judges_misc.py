@@ -4,10 +4,11 @@ truncation/shuffle (spec A4.6) — no network, no model load.
 
 import pytest
 
-from thoughtzero.config import JudgeCfg
-from thoughtzero.judge.factory import make_constant_value_judge, make_judge
+from thoughtzero.config import JudgeCfg, load_config
+from thoughtzero.eval.methods import MethodUnavailable, build_judge
+from thoughtzero.judge.factory import make_judge
 from thoughtzero.judge.hybrid import HybridJudge
-from thoughtzero.judge.jev import _shuffle_permutation, _truncate_steps
+from thoughtzero.judge.jev import JevJudge, _shuffle_permutation, _truncate_steps
 from thoughtzero.judge.uniform import ConstantValueJudge, UniformJudge
 
 
@@ -64,10 +65,51 @@ def test_factory_builds_uniform():
     assert isinstance(make_judge(JudgeCfg(kind="uniform")), UniformJudge)
 
 
-def test_make_constant_value_judge_helper():
-    j = make_constant_value_judge(0.3)
-    assert isinstance(j, ConstantValueJudge)
-    assert j.value == 0.3
+def test_factory_hybrid_accepts_constant_sub_judge():
+    j = make_judge(JudgeCfg(kind="hybrid", prior_from="uniform", value_from="constant"))
+    assert isinstance(j, HybridJudge)
+    assert isinstance(j.value_from, ConstantValueJudge)
+    assert j.value_from.value == 0.5
+
+
+@pytest.mark.parametrize("variant", ["prior_only", "value_only", "per_candidate_noul"])
+def test_ablation_variants_build(variant):
+    """Every Person 2 ablation in configs/ablations.yaml builds a judge (with the
+    local stand-in transport, since real Jev isn't connected yet)."""
+    from thoughtzero.config import apply_variant
+
+    cfg = apply_variant(load_config("configs/ablations.yaml"), variant)
+    jcfg = cfg.judge.model_copy(update={"transport": "local_stub"})
+    make_judge(jcfg)
+
+
+@pytest.mark.parametrize(
+    "update",
+    [
+        {"kind": "self"},
+        {"kind": "prm"},
+        {"kind": "hybrid", "prior_from": "self", "value_from": "prm"},  # tz_prm (B5)
+        {"kind": "jev"},  # default transport (openrouter) isn't implemented yet
+    ],
+)
+def test_unbuilt_judges_are_skipped_by_build_judge(update):
+    """eval/methods.py::build_judge must report these as unavailable (skip), not
+    hand back an object that fails on every call."""
+    with pytest.raises(MethodUnavailable):
+        build_judge(JudgeCfg().model_copy(update=update))
+
+
+def test_sound_variant_selects_instruction():
+    from thoughtzero.llm.prompts import SOUND_VARIANTS
+
+    for i, text in enumerate(SOUND_VARIANTS):
+        j = JevJudge(JudgeCfg(transport="local_stub", sound_variant=i))
+        assert j.sound_instruction == text
+
+
+def test_sound_variant_out_of_range_fails_loudly():
+    with pytest.raises(IndexError):
+        JevJudge(JudgeCfg(transport="local_stub", sound_variant=99))
 
 
 def test_factory_builds_hybrid_from_named_sub_kinds():
@@ -85,8 +127,6 @@ def test_factory_hybrid_without_prior_from_raises():
 
 
 def test_factory_builds_jev():
-    from thoughtzero.judge.jev import JevJudge
-
     j = make_judge(JudgeCfg(kind="jev", transport="local_stub"))
     assert isinstance(j, JevJudge)
 

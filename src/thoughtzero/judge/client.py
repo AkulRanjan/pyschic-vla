@@ -92,6 +92,16 @@ _local_backend = _LocalStubBackend()
 
 class JevClient:
     def __init__(self, cfg: JudgeCfg) -> None:
+        # Fail at construction, not on the first call: eval/methods.py::build_judge turns a
+        # NotImplementedError from make_judge into "method unavailable, skipped".
+        if cfg.transport != "local_stub":
+            raise NotImplementedError(
+                f"judge.transport={cfg.transport!r} is not implemented yet: real TypeSafe "
+                "access (waitlist / OpenRouter key) is still pending, and request field "
+                "names are unverified (SPEC.md §13.5). See docs/verified_apis.md -> "
+                "'Jev / TypeSafe'. For development only: --set judge.transport=local_stub "
+                "(the open-jev stand-in, not TypeSafe's model)."
+            )
         self.cfg = cfg
         self._semaphore = asyncio.Semaphore(cfg.max_concurrency)
         self.latencies_ms: list[float] = []
@@ -100,14 +110,7 @@ class JevClient:
         async with self._semaphore:
             t0 = time.monotonic()
             try:
-                if self.cfg.transport == "local_stub":
-                    return await self._ask_local_stub(state, questions)
-                raise NotImplementedError(
-                    f"transport={self.cfg.transport!r} is not implemented yet: real TypeSafe "
-                    "access (waitlist / OpenRouter key) is still pending, and request field "
-                    "names are unverified (SPEC.md §13.5). See docs/verified_apis.md -> "
-                    "'Jev / TypeSafe'. Use judge.transport='local_stub' for now."
-                )
+                return await self._ask_local_stub(state, questions)
             finally:
                 self.latencies_ms.append((time.monotonic() - t0) * 1000)
 

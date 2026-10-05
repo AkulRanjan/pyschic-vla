@@ -44,11 +44,12 @@ class GeneratorCfg(_Section):
 class JudgeCfg(_Section):
     kind: Literal["jev", "self", "prm", "uniform", "hybrid"] = "jev"
     jev_model: str = "jev-1.13.0"
-    # "local_stub": com-kotobalabs/open-jev-deberta-v3-large, self-hosted,
-    # used while the real TypeSafe waitlist/key are pending (needs team
-    # sign-off — config.py is shared, spec B2 — see docs/verified_apis.md).
-    transport: Literal["direct", "openrouter", "sdk", "local_stub"] = "local_stub"
+    # "local_stub" = open-jev, an open-source stand-in (not TypeSafe's model), for
+    # development only; opt in explicitly so no run measures it by accident.
+    transport: Literal["direct", "openrouter", "sdk", "local_stub"] = "openrouter"
     prior_mode: Literal["choice", "per_candidate_noul"] = "choice"
+    # index into prompts.SOUND_VARIANTS (pilot prompt-sensitivity check, SPEC.md §7)
+    sound_variant: int = Field(default=0, ge=0)
     max_concurrency: int = 16
     shuffle_options: bool = False
     root_value: float = 0.5

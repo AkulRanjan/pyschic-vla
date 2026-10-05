@@ -19,7 +19,7 @@ from thoughtzero.llm.prompts import (
     FINAL_INSTRUCTION,
     NEXT_INSTRUCTION,
     PROMPT_VERSION,
-    SOUND_INSTRUCTION,
+    SOUND_VARIANTS,
     judge_state,
     judge_state_final,
 )
@@ -77,6 +77,8 @@ def _shuffle_permutation(state: str, n: int) -> list[int]:
 class JevJudge:
     def __init__(self, cfg: JudgeCfg) -> None:
         self.cfg = cfg
+        # IndexError (not caught by build_judge) if out of range: a config bug, fail loudly
+        self.sound_instruction = SOUND_VARIANTS[cfg.sound_variant]
         self.client = JevClient(cfg)
         self.cache = DiskCache()
         self.truncation_count = 0
@@ -183,7 +185,7 @@ class JevJudge:
             return self._parse_priors(answers, len(candidates)), self.cfg.root_value
 
         state = judge_state(problem, steps)
-        questions = {"sound": {"type": "noul", "instructions": SOUND_INSTRUCTION}}
+        questions = {"sound": {"type": "noul", "instructions": self.sound_instruction}}
         questions.update(self._build_prior_questions(candidates))
         answers = await self._ask(state, questions)
         value = float(answers["sound"]["noul"])
@@ -215,7 +217,7 @@ class JevJudge:
             self.truncation_count += 1
         state = judge_state(problem, steps)
         answers = await self._ask(
-            state, {"sound": {"type": "noul", "instructions": SOUND_INSTRUCTION}}
+            state, {"sound": {"type": "noul", "instructions": self.sound_instruction}}
         )
         return float(answers["sound"]["noul"])
 
