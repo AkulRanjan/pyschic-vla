@@ -35,10 +35,10 @@ def test_default_yaml_loads_without_env(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr("thoughtzero.config.load_dotenv", lambda *a, **k: False)
     cfg = load_config(CONFIGS / "default.yaml")
     assert cfg.generator.base_url == "http://localhost:8000/v1"
-    assert cfg.judge.transport == "openrouter" and cfg.judge.jev_model is None
+    assert cfg.judge.transport == "jevos" and cfg.judge.jev_model is None
     from thoughtzero.judge.client import resolve_route
 
-    assert resolve_route(cfg.judge)[1] == "typesafe/jev-1.13"  # the route pins jev-1.13
+    assert resolve_route(cfg.judge)[1] == "jevos-v4"  # results/DECISIONS.md
 
 
 def test_env_interpolation(monkeypatch: pytest.MonkeyPatch) -> None:

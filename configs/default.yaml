@@ -14,7 +14,7 @@ generator:
   stop: ["\n\nStep", "\n\n\n"]
 judge:
   kind: jev                     # jev | self | prm | uniform | hybrid
-  transport: ${JEV_TRANSPORT:-openrouter}   # direct | openrouter | zen | vercel | bocha | local_stub
+  transport: ${JEV_TRANSPORT:-jevos}     # direct | openrouter | zen | vercel | bocha | local_stub
   jev_model: null               # null: the route's default (judge/client.py PROVIDERS)
   prior_mode: choice            # choice | per_candidate_noul
   max_concurrency: 16

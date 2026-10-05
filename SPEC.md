@@ -1,6 +1,7 @@
 # ThoughtZero — Training-free AlphaZero-style search over reasoning steps
 
-> **Amended 2026-10-05:** the generator is Gemma 4 **26B-A4B** via OpenRouter's chat API (not self-hosted E4B on the completions endpoint), and baseline C is Gemma 4 31B on OpenRouter. Where this spec says E4B, raw completions, `n=k` or prefix caching, read `results/DECISIONS.md`. Other amendments are logged there too.
+> **Amended 2026-10-05:** the generator is Gemma 4 **26B-A4B** via OpenRouter's chat API (not self-hosted E4B on the completions endpoint), baseline C is Gemma 4 31B on OpenRouter, and the judge is **jevos-v4** (an open-source,
+> local model speaking Jev's protocol) rather than TypeSafe's Jev. Where this spec says E4B, raw completions, `n=k` or prefix caching, read `results/DECISIONS.md`. Other amendments are logged there too.
 
 > **Build spec for Claude Code.** Place this file at the repo root as `SPEC.md`. Work phase by phase (§10). Do not start a phase until the previous phase's *Definition of done* is met. Items marked **VERIFY** are facts that must be checked against current docs before code depends on them.
 

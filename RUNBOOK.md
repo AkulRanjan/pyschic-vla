@@ -32,7 +32,22 @@ python scripts/smoke_test.py --mock                     # offline: prints "MCTS 
 Keep **one route for all results**: the pilot's labels, the search and the baselines should
 come from the same Gemma (`results/DECISIONS.md`).
 
-### Jev (the judge): always OpenRouter
+### The judge: jevos (default) or Jev
+
+**Default since 2026-10-05: jevos** (`results/DECISIONS.md`), free and local. Download and start
+it once per session (Windows PowerShell; Linux/macOS use the `.tar.gz` build):
+
+```powershell
+mkdir P:\jevos; cd P:\jevos
+gh release download jevos-v4 --repo feder-cr/jev --pattern "jev-windows-x64.zip" --pattern "jevos-v4-openvino-int8.zip" --pattern "SHA256SUMS.txt"
+Get-FileHash jev-windows-x64.zip, jevos-v4-openvino-int8.zip -Algorithm SHA256   # compare with SHA256SUMS.txt
+Expand-Archive jev-windows-x64.zip -DestinationPath .
+cd jev; Expand-Archive ..\jevos-v4-openvino-int8.zip -DestinationPath .        # creates model.\jev.exe serve                                                                # keep this window open
+```
+
+`.env`: `JEV_TRANSPORT=jevos` (no key). Check it: `python scripts/probe_jev.py --transport jevos`.
+
+**To use TypeSafe's Jev instead** (the original study):
 
 `OPENROUTER_API_KEY=...`, `JEV_TRANSPORT=openrouter`. Jev is cheap (~$0.04 per 1,000 calls on
 short states), but the account needs **purchased** credit; the free allowance runs out fast
@@ -165,6 +180,25 @@ Fill in `results/REPORT.md` §1, §5–§8 from the generated files (never type 
 then do a fresh-clone check (§1 commands) and tag `v0.1.0`.
 
 ---
+
+## Demonstration (for presentations)
+
+```bash
+python scripts/demo.py --mock --html demo.html     # offline, no keys: always works
+python scripts/demo.py --html demo.html            # real Gemma + judge, from .env (~2–5 min)
+python scripts/demo.py --problem "What is 3^4 - 2^5?" --gold 49 --html demo.html
+```
+
+It narrates the search live: each expansion's candidate next steps with the judge's prior as a
+bar, the judge's value of the state, each finished solution with the judge's verdict. Then it
+prints the chosen solution, the answer (✓/✗), the search tree and a no-search baseline on the
+same problem, and `--html` writes an interactive page of the whole tree (collapsible nodes,
+the chosen path in green) to open in a browser.
+
+**Suggested walkthrough (5 minutes):** run the mock demo first. The toy judge's prior always
+favours "add 5", so plain greedy ends at 15 (wrong), while the search follows the judge's
+*values* and finds 13. Open `demo.html` and follow the green path. Then run the real demo on
+a maths problem to show the same machinery with Gemma and the judge.
 
 ## Troubleshooting
 

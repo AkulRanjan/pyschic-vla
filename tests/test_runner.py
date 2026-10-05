@@ -304,7 +304,7 @@ def test_baselines_through_runner_and_sample_curves(tmp_path):
 
 
 def test_jev_estimate():
-    c = cfg("search.n_simulations=16")
+    c = cfg("search.n_simulations=16", "judge.transport=openrouter")  # a paid route
     tz = build_method("tz", c, MockGenerator(), mock=True)
     self_tz = build_method("tz_self", c, MockGenerator(), mock=True)
     usd = estimate_jev_usd(c, 100, [tz, self_tz])

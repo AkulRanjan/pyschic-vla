@@ -92,7 +92,7 @@ def test_ablation_variants_build(variant):
         {"kind": "self"},
         {"kind": "prm"},
         {"kind": "hybrid", "prior_from": "self", "value_from": "prm"},  # tz_prm (B5)
-        {"kind": "jev"},  # no API key for the default route (openrouter)
+        {"kind": "jev", "transport": "openrouter"},  # no API key for this route
     ],
 )
 def test_unbuilt_judges_are_skipped_by_build_judge(update, monkeypatch):

@@ -26,7 +26,8 @@ Verified: ~420 offline tests (ruff, mypy, CI clean); every pipeline end to end o
 | Baselines B1, B2, B3, C (`configs/c31b.yaml`) | ✅ done |
 | Runner, metrics, plots; pilot pipeline and report | ✅ done |
 | `results/REPORT.md` | method, judges, setup, known limitations written; results pending |
-| **Real runs (S2 pilot → S7)** | ⏸ paused: need OpenRouter credit (Jev; Gemma for speed) |
+| Judge default: **jevos** (free, local; D15, `results/DECISIONS.md`) | ✅ integrated and tested offline; the owner downloads and starts `jev serve` (RUNBOOK.md) |
+| **Real runs (S2 pilot → S7)** | ▶ Gemma stages running on the free Gemini tier; judge stages need `jev serve` |
 
 Partial outputs already on disk (git-ignored): `results/pilot` (63 level-5 traces from the
 Gemini route), `results/pilot_openrouter_partial` (OpenRouter route), probes in

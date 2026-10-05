@@ -562,7 +562,9 @@ def estimate_jev_usd(cfg: Config, n_problems: int, methods: Sequence[Method]) ->
     Only methods with ``uses_jev = True`` count. Search makes at most one Jev call per
     simulation (an expansion or a terminal evaluation); best-of-N one per sample.
     """
-    per_token = cfg.judge.usd_per_mtok / 1e6
+    from thoughtzero.judge.client import judge_usd_per_mtok
+
+    per_token = judge_usd_per_mtok(cfg.judge) / 1e6
     calls = 0
     for m in methods:
         if not getattr(m, "uses_jev", False):
