@@ -38,6 +38,8 @@ from thoughtzero.types import GenOut
 
 log = logging.getLogger(__name__)
 
+LOGPROB_ATTEMPTS = 3  # a reply can lack logprobs (provider-dependent): ask again
+
 
 # Hosted endpoints whose own key variable is used when GEMMA_API_KEY isn't set.
 HOSTED_KEYS = {
@@ -133,6 +135,7 @@ class ChatGenerator:
             kwargs["stop"] = list(stop)
         if self.seed is not None:  # passed for reproducibility where the route honours it
             kwargs["seed"] = _derive_seed(self.seed, repr(messages), sample)
+        kwargs.update(self._routing())
         async with self._sem:
             resp: Any = None
             async for attempt in AsyncRetrying(
@@ -153,6 +156,48 @@ class ChatGenerator:
         if any(mark in text for mark in THINKING_MARKERS):
             log.warning("Thinking-mode markup in generator output; check the model / route")
         return text
+
+    async def first_token_logprobs(
+        self, messages: list[dict[str, str]], top_k: int = 20
+    ) -> dict[str, float]:
+        """``{token: logprob}`` for the reply's first token (greedy), top ``top_k``.
+
+        For ``judge/self_judge.py``. Routes may return fewer than ``top_k`` (OpenRouter's
+        Gemma 4: 5 when asked for 5).
+        """
+        kwargs: dict[str, Any] = {
+            "model": self.cfg.model,
+            "messages": messages,
+            "temperature": 0,
+            "max_tokens": 1,
+            "logprobs": True,
+            "top_logprobs": top_k,
+        }
+        kwargs.update(self._routing())
+        for _ in range(LOGPROB_ATTEMPTS):
+            async with self._sem:
+                resp: Any = None
+                async for attempt in AsyncRetrying(
+                    stop=stop_after_attempt(self.max_attempts),
+                    wait=wait_exponential(multiplier=0.5, max=20),
+                    retry=retry_if_exception(_is_retryable),
+                    reraise=True,
+                ):
+                    with attempt:
+                        resp = await self.client.chat.completions.create(**kwargs)
+            if resp.usage is not None:
+                accounting.record_gemma(resp.usage.prompt_tokens, resp.usage.completion_tokens)
+            logprobs = resp.choices[0].logprobs if resp.choices else None
+            if logprobs is not None and logprobs.content:
+                return {t.token: t.logprob for t in logprobs.content[0].top_logprobs}
+            log.warning("reply without logprobs; retrying")
+        return {}
+
+    def _routing(self) -> dict[str, Any]:
+        """OpenRouter provider routing (``generator.provider``); nothing for other endpoints."""
+        if "openrouter.ai" in self.cfg.base_url and self.cfg.provider:
+            return {"extra_body": {"provider": dict(self.cfg.provider)}}
+        return {}
 
     def _messages(self, problem: str, steps: Sequence[str], next_step_only: bool) -> Any:
         return generator_chat_messages(

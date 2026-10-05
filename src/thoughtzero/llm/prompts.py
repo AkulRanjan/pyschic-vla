@@ -15,7 +15,7 @@ import re
 from collections.abc import Sequence
 from typing import Protocol
 
-PROMPT_VERSION = "g4"  # g4: chat-API generator prompts (generator_chat_messages)
+PROMPT_VERSION = "g5"  # g5: Gemma self-judge prompts
 
 
 class ChatTemplater(Protocol):
@@ -238,3 +238,40 @@ def judge_state_final(problem: str, steps: list[str]) -> str:
     """Like ``judge_state``, but headed ``SOLUTION:`` for a terminal state
     (used by ``final_correct``, which asks about the finished solution)."""
     return f"PROBLEM:\n{problem.strip()}\n\nSOLUTION:\n{format_steps(steps)}".rstrip()
+
+
+# Gemma self-judge (baseline B4, judge/self_judge.py): the same questions as Jev, posed to the
+# generator model as chat prompts; the answer is read from the first token's logprobs.
+SELF_JUDGE_SYSTEM = "You are a careful, strict grader of math solutions."
+SELF_JUDGE_YES_NO = "Answer with exactly one word: Yes or No."
+SELF_JUDGE_LETTER = "Answer with exactly one letter: the letter of your choice."
+LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def self_judge_yes_no_messages(
+    problem: str, steps: list[str], question: str, *, final: bool = False
+) -> list[dict[str, str]]:
+    """A yes/no question about the state (``final``: about the finished solution)."""
+    state = judge_state_final(problem, steps) if final else judge_state(problem, steps)
+    return [
+        {"role": "system", "content": SELF_JUDGE_SYSTEM},
+        {"role": "user", "content": f"{state}\n\n{question}\n{SELF_JUDGE_YES_NO}"},
+    ]
+
+
+def self_judge_choice_messages(
+    problem: str, steps: list[str], candidates: list[str]
+) -> list[dict[str, str]]:
+    """A multiple-choice question over candidate next steps, lettered A, B, C, ..."""
+    if len(candidates) > len(LETTERS):
+        raise ValueError(f"at most {len(LETTERS)} candidates, got {len(candidates)}")
+    options = "\n".join(f"{LETTERS[i]}. {c.strip()}" for i, c in enumerate(candidates))
+    state = judge_state(problem, steps)
+    return [
+        {"role": "system", "content": SELF_JUDGE_SYSTEM},
+        {
+            "role": "user",
+            "content": f"{state}\n\nCANDIDATE NEXT STEPS:\n{options}\n\n"
+            f"{NEXT_INSTRUCTION}\n{SELF_JUDGE_LETTER}",
+        },
+    ]

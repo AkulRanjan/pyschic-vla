@@ -148,3 +148,23 @@ def test_openrouter_key_is_used_for_an_openrouter_endpoint(monkeypatch: Any) -> 
 def test_factory_picks_the_class_from_generator_api() -> None:
     cfg = Config(generator=GeneratorCfg(api="chat", base_url=BASE, model="gemma"))
     assert isinstance(make_generator(cfg, tokenizer=WordTokenizer()), ChatGenerator)
+
+
+async def test_openrouter_requests_carry_provider_routing(respx_mock: Any) -> None:
+    or_base = "https://openrouter.ai/api/v1"
+    route = respx_mock.post(f"{or_base}/chat/completions").mock(return_value=reply("Step 2: a"))
+    cfg = GeneratorCfg(api="chat", base_url=or_base, model="google/gemma-4-26b-a4b-it")
+    client = AsyncOpenAI(
+        base_url=or_base, api_key="k", max_retries=0, http_client=httpx.AsyncClient()
+    )
+    await ChatGenerator(cfg, WordTokenizer(), client=client).propose("p", ["s"], 1)
+    assert sent(route.calls.last)["provider"] == {
+        "quantizations": ["bf16"],
+        "require_parameters": True,
+    }
+
+
+async def test_other_endpoints_get_no_provider_field(respx_mock: Any) -> None:
+    route = respx_mock.post(URL).mock(return_value=reply("Step 2: a"))
+    await make_gen().propose("p", ["s"], 1)
+    assert "provider" not in sent(route.calls.last)

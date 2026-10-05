@@ -82,7 +82,15 @@ def build_generator(cfg: Config, *, mock: bool = False) -> Generator:
     return make_generator(cfg)
 
 
-def build_judge(jcfg: JudgeCfg, *, seed: int = 0, mock: bool = False) -> Judge:
+def judge_needs_generator(jcfg: JudgeCfg) -> bool:
+    return jcfg.kind == "self" or (
+        jcfg.kind == "hybrid" and "self" in (jcfg.prior_from, jcfg.value_from)
+    )
+
+
+def build_judge(
+    jcfg: JudgeCfg, *, seed: int = 0, mock: bool = False, generator: Generator | None = None
+) -> Judge:
     """Person 2's ``make_judge`` (or the mock). Raises MethodUnavailable while it is a stub."""
     if mock:
         from thoughtzero.mocks import MockJudge
@@ -91,7 +99,7 @@ def build_judge(jcfg: JudgeCfg, *, seed: int = 0, mock: bool = False) -> Judge:
     from thoughtzero.judge.factory import make_judge
 
     try:
-        return make_judge(jcfg)
+        return make_judge(jcfg, generator)
     except (NotImplementedError, ValueError, TypeError) as e:  # stub / unknown kind / old API
         raise MethodUnavailable(f"judge kind={jcfg.kind!r} not available yet: {e}") from e
 
@@ -170,7 +178,7 @@ def build_method(
     m: Any
     if name in TZ_JUDGES:
         jcfg = cfg.judge.model_copy(update=TZ_JUDGES[name])
-        judge = build_judge(jcfg, seed=cfg.seed, mock=mock)
+        judge = build_judge(jcfg, seed=cfg.seed, mock=mock, generator=generator)
         return TZMethod(generator, judge, cfg, tools, name=name, uses_jev=judge_uses_jev(jcfg))
 
     from thoughtzero.baselines.best_of_n import BestOfN
@@ -189,7 +197,7 @@ def build_method(
         m.params, m.uses_jev = {"n": n}, False
     else:  # bon
         assert n is not None
-        judge = build_judge(cfg.judge, seed=cfg.seed, mock=mock)
+        judge = build_judge(cfg.judge, seed=cfg.seed, mock=mock, generator=generator)
         m = BestOfN(
             judge,
             n,

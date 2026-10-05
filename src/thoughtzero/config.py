@@ -45,6 +45,11 @@ class GeneratorCfg(_Section):
     max_solution_tokens: int = 2048
     stop: list[str] = ["\n\nStep", "\n\n\n"]
     max_concurrency: int = 32
+    # OpenRouter provider routing (sent as "provider" with generator.api=chat on OpenRouter).
+    # 13 providers serve Gemma 4 26B at bf16 / fp8 / unknown precision, and not all support
+    # logprobs, seed or stop: keep every call on full-precision providers that honour every
+    # parameter sent (docs/verified_apis.md G12).
+    provider: dict[str, Any] = {"quantizations": ["bf16"], "require_parameters": True}
 
 
 class JudgeCfg(_Section):
