@@ -36,9 +36,14 @@ def kaggle(*args: str, attempts: int = 4) -> str:
     """Run the Kaggle CLI. Retries with backoff: the API intermittently rejects calls
     (reported as "Authentication required") when they come in quick succession."""
     exe = Path(sys.executable).with_name("kaggle.exe" if os.name == "nt" else "kaggle")
+    # Use only KAGGLE_API_TOKEN: an older ~/.kaggle/kaggle.json key takes precedence over it
+    # and can be read-only ("Authentication required" on push). An empty config dir hides it.
+    config_dir = ROOT / ".cache" / "kaggle"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "KAGGLE_CONFIG_DIR": str(config_dir)}
     out = ""
     for attempt in range(attempts):
-        r = subprocess.run([str(exe), *args], capture_output=True, text=True)
+        r = subprocess.run([str(exe), *args], capture_output=True, text=True, env=env)
         out = (r.stdout + r.stderr).strip()
         if r.returncode == 0:
             return out
@@ -79,6 +84,7 @@ def main() -> int:
     )
     parser.add_argument("--no-wait", action="store_true")
     parser.add_argument("--fetch", action="store_true", help="only download the last outputs")
+    parser.add_argument("--attach", action="store_true", help="wait for the running job, no push")
     parser.add_argument("--timeout-min", type=int, default=120, help="stop waiting after this")
     args = parser.parse_args()
 
@@ -91,26 +97,8 @@ def main() -> int:
     if args.fetch:
         print(f"outputs -> {fetch(ref, args.job)}")
         return 0
-
-    with tempfile.TemporaryDirectory() as tmp:
-        shutil.copytree(job_dir, tmp, dirs_exist_ok=True)
-        meta = {
-            "id": ref,
-            "title": slug,
-            "code_file": f"{args.job}.py",
-            "language": "python",
-            "kernel_type": "script",
-            "is_private": "true",
-            "enable_gpu": "true",
-            "enable_internet": "true",
-            "machine_shape": args.machine,
-            "dataset_sources": [],
-            "competition_sources": [],
-            "kernel_sources": [],
-            "model_sources": [],
-        }
-        (Path(tmp) / "kernel-metadata.json").write_text(json.dumps(meta, indent=2))
-        print(kaggle("kernels", "push", "-p", tmp))
+    if not args.attach:
+        push(ref, slug, args.job, job_dir, args.machine)
     print(f"https://www.kaggle.com/code/{ref}")
     if args.no_wait:
         return 0
@@ -126,6 +114,28 @@ def main() -> int:
     dest = fetch(ref, args.job)
     print(f"final status: {state}; outputs -> {dest}")
     return 0 if state == "complete" else 1
+
+
+def push(ref: str, slug: str, job: str, job_dir: Path, machine: str) -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        shutil.copytree(job_dir, tmp, dirs_exist_ok=True)
+        meta = {
+            "id": ref,
+            "title": slug,
+            "code_file": f"{job}.py",
+            "language": "python",
+            "kernel_type": "script",
+            "is_private": "true",
+            "enable_gpu": "true",
+            "enable_internet": "true",
+            "machine_shape": machine,
+            "dataset_sources": [],
+            "competition_sources": [],
+            "kernel_sources": [],
+            "model_sources": [],
+        }
+        (Path(tmp) / "kernel-metadata.json").write_text(json.dumps(meta, indent=2))
+        print(kaggle("kernels", "push", "-p", tmp))
 
 
 if __name__ == "__main__":
