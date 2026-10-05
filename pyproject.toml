@@ -35,6 +35,7 @@ dev = [
     "mypy>=1.10",
     "types-PyYAML",
     "pre-commit>=3.7",
+    "kaggle>=2.0",  # scripts/kaggle_run.py
 ]
 prm = ["torch>=2.3", "accelerate>=0.30"]
 ft = ["peft>=0.12"]
