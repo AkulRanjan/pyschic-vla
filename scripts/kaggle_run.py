@@ -32,7 +32,11 @@ ROOT = Path(__file__).resolve().parents[1]
 TERMINAL = {"complete", "error", "cancelacknowledged", "cancelrequested"}
 
 
-def kaggle(*args: str, attempts: int = 4) -> str:
+class KaggleError(RuntimeError):
+    pass
+
+
+def kaggle(*args: str, attempts: int = 5) -> str:
     """Run the Kaggle CLI. Retries with backoff: the API intermittently rejects calls
     (reported as "Authentication required") when they come in quick succession."""
     exe = Path(sys.executable).with_name("kaggle.exe" if os.name == "nt" else "kaggle")
@@ -47,15 +51,18 @@ def kaggle(*args: str, attempts: int = 4) -> str:
         out = (r.stdout + r.stderr).strip()
         if r.returncode == 0:
             return out
-        time.sleep(10 * 2**attempt)
-    raise SystemExit(f"kaggle {' '.join(args[:2])} failed: {out[-1500:]}")
+        if attempt < attempts - 1:
+            time.sleep(min(30 * 2**attempt, 300))
+    raise KaggleError(f"kaggle {' '.join(args[:2])} failed: {out[-1500:]}")
 
 
 def username() -> str:
+    if os.environ.get("KAGGLE_USERNAME"):
+        return os.environ["KAGGLE_USERNAME"]
     for line in kaggle("config", "view").splitlines():
         if "username:" in line:
             return line.split(":", 1)[1].strip()
-    raise SystemExit("could not read the Kaggle username (is KAGGLE_API_TOKEN set in .env?)")
+    raise SystemExit("could not read the Kaggle username: set KAGGLE_USERNAME in .env")
 
 
 def status(ref: str) -> str:
@@ -106,8 +113,12 @@ def main() -> int:
     t0 = time.time()
     state = "queued"
     while time.time() - t0 < args.timeout_min * 60:
-        time.sleep(30)
-        state = status(ref)
+        time.sleep(60)
+        try:
+            state = status(ref)
+        except KaggleError as e:  # a transient rejection: keep waiting
+            print(f"status check failed, will retry: {str(e)[:120]}", flush=True)
+            continue
         print(f"[{(time.time() - t0) / 60:5.1f} min] {state}", flush=True)
         if state in TERMINAL:
             break

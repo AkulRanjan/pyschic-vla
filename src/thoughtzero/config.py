@@ -33,6 +33,9 @@ class _Section(BaseModel):
 class GeneratorCfg(_Section):
     base_url: str = "http://localhost:8000/v1"
     model: str = "google/gemma-4-E4B-it"
+    # HF tokenizer id when ``model`` isn't one (a quantized checkpoint or an Ollama tag);
+    # empty/None: use ``model``
+    tokenizer: str | None = None
     temperature: float = 0.9
     top_p: float = 0.95
     max_step_tokens: int = 256

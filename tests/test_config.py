@@ -117,3 +117,11 @@ def test_dump_roundtrip(tmp_path: Path) -> None:
     out = tmp_path / "run" / "config.yaml"
     dump_resolved(cfg, out)
     assert config_hash(load_config(out)) == config_hash(cfg)
+
+
+def test_gemma_tokenizer_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("thoughtzero.config.load_dotenv", lambda *a, **k: False)
+    monkeypatch.delenv("GEMMA_TOKENIZER", raising=False)
+    assert not load_config(CONFIGS / "default.yaml").generator.tokenizer  # unset: use model
+    monkeypatch.setenv("GEMMA_TOKENIZER", "google/gemma-4-E4B-it")
+    assert load_config(CONFIGS / "default.yaml").generator.tokenizer == "google/gemma-4-E4B-it"
