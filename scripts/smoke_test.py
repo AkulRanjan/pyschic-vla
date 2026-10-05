@@ -161,14 +161,14 @@ def main() -> None:
 
     from thoughtzero.judge import budget
     from thoughtzero.judge.factory import make_judge
-    from thoughtzero.llm.gemma import OpenAICompatibleGenerator
+    from thoughtzero.llm.factory import make_generator
 
     budget.configure(5 * MAX_JEV_USD, cfg.judge.usd_per_mtok)  # hard stop well above the target
     try:
         judge = make_judge(cfg.judge)
     except (NotImplementedError, ValueError) as e:
         raise SystemExit(f"Jev judge unavailable: {e}") from e
-    generator = OpenAICompatibleGenerator.from_config(cfg, tokenizer_name=args.tokenizer)
+    generator = make_generator(cfg, tokenizer_name=args.tokenizer)
     print(
         f"Gemma {cfg.generator.model} @ {cfg.generator.base_url} | Jev route "
         f"{cfg.judge.transport} | n_sims={args.n_sims} k={args.k}"

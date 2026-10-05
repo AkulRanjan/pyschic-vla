@@ -14,8 +14,10 @@ checks a greedy answer and logprobs, and measures n=4 throughput. Then either:
   on your machine. The URL changes every session.
 - **in_colab**: run a script inside Colab, with the Jev key from a Colab secret.
 
-The free tier gives a T4 (16 GB, no bf16), so the notebook tries the 4-bit QAT checkpoint
-first, then bitsandbytes 4-bit. Colab Pro's L4 / A100 serve the bf16 weights. Sessions end
+**A T4 doesn't work** (Colab free tier, vLLM 0.31, tested 2026-10-05): the 4-bit QAT
+checkpoint fails at engine start-up, vLLM no longer supports bitsandbytes, and the bf16
+weights don't fit. Use an L4 / A100 runtime (Colab Pro), or a hosted generator: the project
+currently uses Gemma 4 26B-A4B on OpenRouter (`results/DECISIONS.md`). Sessions end
 when idle (~90 min) and after at most 12 h (free tier): long runs must resume (the runner
 does), and a new session means new `.env` lines.
 
@@ -26,7 +28,7 @@ remain as an alternative.
 
 | GPU | E4B option | Notes |
 |---|---|---|
-| T4 (Colab free / Kaggle; 16 GB, fp16 only) | `google/gemma-4-E4B-it-qat-w4a16-ct` (11.5 GB) | bf16 (16 GB) doesn't fit. The 4-bit QAT checkpoint should, but **fp16 correctness on a T4 is unverified**. Before any real run, check outputs for NaNs or garbage on 20 MATH train problems. |
+| T4 (Colab free / Kaggle; 16 GB, fp16 only) | ❌ none with vLLM 0.31 | bf16 (16 GB) doesn't fit; the 4-bit QAT checkpoint fails at engine start-up; bitsandbytes is no longer supported (Colab, 2026-10-05). |
 | 24 GB+ with bf16 (Colab Pro L4 / A100; rented A10G, 3090, 4090) | `google/gemma-4-E4B-it` (bf16) | The configuration vLLM's recipe supports. Prefer this for the main experiments. |
 | Laptop | Ollama `gemma4:e4b` | Smoke tests only. Ollama applies its own template and may not support `n>1`. |
 

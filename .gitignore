@@ -19,6 +19,8 @@ dist/
 # run outputs; the write-up itself is tracked
 results/*
 !results/REPORT.md
+!results/PHASE_*_NOTES.md
+!results/DECISIONS.md
 .cache/
 jev_cache/
 *.sqlite

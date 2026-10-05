@@ -77,9 +77,9 @@ def build_generator(cfg: Config, *, mock: bool = False) -> Generator:
         from thoughtzero.mocks import MockGenerator
 
         return MockGenerator(cfg.seed)
-    from thoughtzero.llm.gemma import OpenAICompatibleGenerator
+    from thoughtzero.llm.factory import make_generator
 
-    return OpenAICompatibleGenerator(cfg.generator)
+    return make_generator(cfg)
 
 
 def build_judge(jcfg: JudgeCfg, *, seed: int = 0, mock: bool = False) -> Judge:

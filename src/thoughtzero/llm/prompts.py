@@ -15,7 +15,7 @@ import re
 from collections.abc import Sequence
 from typing import Protocol
 
-PROMPT_VERSION = "g3"  # g3: SOUND_VARIANTS[2] reworded so "yes" means sound
+PROMPT_VERSION = "g4"  # g4: chat-API generator prompts (generator_chat_messages)
 
 
 class ChatTemplater(Protocol):
@@ -161,6 +161,39 @@ def generator_prompt(
     """
     head = tokenizer.apply_chat_template(generator_messages(problem, use_system_role))
     return head + format_steps(steps) + step_header(len(steps) + 1)
+
+
+# Chat-API generator (llm/chat_generator.py): for hosted APIs such as OpenRouter that can't
+# continue a partial assistant turn, the steps so far go into the user turn with an
+# explicit request for the next step (or the rest of the solution).
+NEXT_STEP_REQUEST = (
+    'Write ONLY the next step, starting with "{header}". Do not repeat earlier steps.'
+)
+CONTINUE_REQUEST = (
+    'Continue the solution from "{header}" to the end. Do not repeat earlier steps. '
+    "In the last step, put the final answer in \\boxed{{}}."
+)
+
+
+def generator_chat_messages(
+    problem: str, steps: Sequence[str], *, next_step_only: bool, use_system_role: bool = True
+) -> list[dict[str, str]]:
+    """Chat messages asking for the next step (``next_step_only``) or the rest of the solution.
+
+    With no steps and the whole solution wanted, this is just ``generator_messages``.
+    """
+    messages = generator_messages(problem, use_system_role)
+    if not steps and not next_step_only:
+        return messages
+    header = step_header(len(steps) + 1)
+    so_far = format_steps(steps).rstrip() or "(no steps yet)"
+    request = (NEXT_STEP_REQUEST if next_step_only else CONTINUE_REQUEST).format(header=header)
+    last = messages[-1]
+    messages[-1] = {
+        "role": last["role"],
+        "content": f"{last['content']}\n\nSolution so far:\n\n{so_far}\n\n{request}",
+    }
+    return messages
 
 
 # === JUDGE SECTION (owner: Person 2 (Jagriti)) ===========================================

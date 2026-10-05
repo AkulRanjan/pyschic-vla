@@ -1,5 +1,6 @@
 # SPEC.md §6.4 defaults. Shared file: change by PR tagged to all four.
 generator:
+  api: ${GEMMA_API:-completions}    # completions (self-hosted vLLM) | chat (hosted, e.g. OpenRouter)
   base_url: ${GEMMA_BASE_URL:-http://localhost:8000/v1}
   model: ${GEMMA_MODEL:-google/gemma-4-E4B-it}
   tokenizer: ${GEMMA_TOKENIZER:-}   # HF id if GEMMA_MODEL isn't one (e.g. the 4-bit checkpoint)

@@ -31,6 +31,9 @@ class _Section(BaseModel):
 
 
 class GeneratorCfg(_Section):
+    # "completions": continue a partial assistant turn on a self-hosted server (vLLM / SGLang;
+    # llm/gemma.py). "chat": hosted chat APIs such as OpenRouter (llm/chat_generator.py).
+    api: Literal["completions", "chat"] = "completions"
     base_url: str = "http://localhost:8000/v1"
     model: str = "google/gemma-4-E4B-it"
     # HF tokenizer id when ``model`` isn't one (a quantized checkpoint or an Ollama tag);
