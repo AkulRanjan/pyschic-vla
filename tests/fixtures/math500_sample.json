@@ -1,0 +1,322 @@
+[
+ {
+  "problem": "Compute $2 \\times 3$.",
+  "solution": "We have $2 \\times 3 = 6$, so the answer is $\\boxed{6}$.",
+  "answer": "6",
+  "subject": "Algebra",
+  "level": 1,
+  "unique_id": "test/algebra/100.json"
+ },
+ {
+  "problem": "Compute $3 \\times 3$.",
+  "solution": "We have $3 \\times 3 = 9$, so the answer is $\\boxed{9}$.",
+  "answer": "9",
+  "subject": "Prealgebra",
+  "level": 2,
+  "unique_id": "test/prealgebra/101.json"
+ },
+ {
+  "problem": "Compute $4 \\times 3$.",
+  "solution": "We have $4 \\times 3 = 12$, so the answer is $\\boxed{12}$.",
+  "answer": "12",
+  "subject": "Geometry",
+  "level": 3,
+  "unique_id": "test/geometry/102.json"
+ },
+ {
+  "problem": "Compute $5 \\times 3$.",
+  "solution": "We have $5 \\times 3 = 15$, so the answer is $\\boxed{15}$.",
+  "answer": "15",
+  "subject": "Number Theory",
+  "level": 4,
+  "unique_id": "test/number_theory/103.json"
+ },
+ {
+  "problem": "Compute $6 \\times 3$.",
+  "solution": "We have $6 \\times 3 = 18$, so the answer is $\\boxed{18}$.",
+  "answer": "18",
+  "subject": "Algebra",
+  "level": 5,
+  "unique_id": "test/algebra/104.json"
+ },
+ {
+  "problem": "Compute $7 \\times 3$.",
+  "solution": "We have $7 \\times 3 = 21$, so the answer is $\\boxed{21}$.",
+  "answer": "21",
+  "subject": "Prealgebra",
+  "level": 1,
+  "unique_id": "test/prealgebra/105.json"
+ },
+ {
+  "problem": "Compute $8 \\times 3$.",
+  "solution": "We have $8 \\times 3 = 24$, so the answer is $\\boxed{24}$.",
+  "answer": "24",
+  "subject": "Geometry",
+  "level": 2,
+  "unique_id": "test/geometry/106.json"
+ },
+ {
+  "problem": "Compute $9 \\times 3$.",
+  "solution": "We have $9 \\times 3 = 27$, so the answer is $\\boxed{27}$.",
+  "answer": "27",
+  "subject": "Number Theory",
+  "level": 3,
+  "unique_id": "test/number_theory/107.json"
+ },
+ {
+  "problem": "Compute $10 \\times 3$.",
+  "solution": "We have $10 \\times 3 = 30$, so the answer is $\\boxed{30}$.",
+  "answer": "30",
+  "subject": "Algebra",
+  "level": 4,
+  "unique_id": "test/algebra/108.json"
+ },
+ {
+  "problem": "Compute $11 \\times 3$.",
+  "solution": "We have $11 \\times 3 = 33$, so the answer is $\\boxed{33}$.",
+  "answer": "33",
+  "subject": "Prealgebra",
+  "level": 5,
+  "unique_id": "test/prealgebra/109.json"
+ },
+ {
+  "problem": "Compute $12 \\times 3$.",
+  "solution": "We have $12 \\times 3 = 36$, so the answer is $\\boxed{36}$.",
+  "answer": "36",
+  "subject": "Geometry",
+  "level": 1,
+  "unique_id": "test/geometry/110.json"
+ },
+ {
+  "problem": "Compute $13 \\times 3$.",
+  "solution": "We have $13 \\times 3 = 39$, so the answer is $\\boxed{39}$.",
+  "answer": "39",
+  "subject": "Number Theory",
+  "level": 2,
+  "unique_id": "test/number_theory/111.json"
+ },
+ {
+  "problem": "Compute $14 \\times 3$.",
+  "solution": "We have $14 \\times 3 = 42$, so the answer is $\\boxed{42}$.",
+  "answer": "42",
+  "subject": "Algebra",
+  "level": 3,
+  "unique_id": "test/algebra/112.json"
+ },
+ {
+  "problem": "Compute $15 \\times 3$.",
+  "solution": "We have $15 \\times 3 = 45$, so the answer is $\\boxed{45}$.",
+  "answer": "45",
+  "subject": "Prealgebra",
+  "level": 4,
+  "unique_id": "test/prealgebra/113.json"
+ },
+ {
+  "problem": "Compute $16 \\times 3$.",
+  "solution": "We have $16 \\times 3 = 48$, so the answer is $\\boxed{48}$.",
+  "answer": "48",
+  "subject": "Geometry",
+  "level": 5,
+  "unique_id": "test/geometry/114.json"
+ },
+ {
+  "problem": "Compute $17 \\times 3$.",
+  "solution": "We have $17 \\times 3 = 51$, so the answer is $\\boxed{51}$.",
+  "answer": "51",
+  "subject": "Number Theory",
+  "level": 1,
+  "unique_id": "test/number_theory/115.json"
+ },
+ {
+  "problem": "Compute $18 \\times 3$.",
+  "solution": "We have $18 \\times 3 = 54$, so the answer is $\\boxed{54}$.",
+  "answer": "54",
+  "subject": "Algebra",
+  "level": 2,
+  "unique_id": "test/algebra/116.json"
+ },
+ {
+  "problem": "Compute $19 \\times 3$.",
+  "solution": "We have $19 \\times 3 = 57$, so the answer is $\\boxed{57}$.",
+  "answer": "57",
+  "subject": "Prealgebra",
+  "level": 3,
+  "unique_id": "test/prealgebra/117.json"
+ },
+ {
+  "problem": "Compute $20 \\times 3$.",
+  "solution": "We have $20 \\times 3 = 60$, so the answer is $\\boxed{60}$.",
+  "answer": "60",
+  "subject": "Geometry",
+  "level": 4,
+  "unique_id": "test/geometry/118.json"
+ },
+ {
+  "problem": "Compute $21 \\times 3$.",
+  "solution": "We have $21 \\times 3 = 63$, so the answer is $\\boxed{63}$.",
+  "answer": "63",
+  "subject": "Number Theory",
+  "level": 5,
+  "unique_id": "test/number_theory/119.json"
+ },
+ {
+  "problem": "Compute $22 \\times 3$.",
+  "solution": "We have $22 \\times 3 = 66$, so the answer is $\\boxed{66}$.",
+  "answer": "66",
+  "subject": "Algebra",
+  "level": 1,
+  "unique_id": "test/algebra/120.json"
+ },
+ {
+  "problem": "Compute $23 \\times 3$.",
+  "solution": "We have $23 \\times 3 = 69$, so the answer is $\\boxed{69}$.",
+  "answer": "69",
+  "subject": "Prealgebra",
+  "level": 2,
+  "unique_id": "test/prealgebra/121.json"
+ },
+ {
+  "problem": "Compute $24 \\times 3$.",
+  "solution": "We have $24 \\times 3 = 72$, so the answer is $\\boxed{72}$.",
+  "answer": "72",
+  "subject": "Geometry",
+  "level": 3,
+  "unique_id": "test/geometry/122.json"
+ },
+ {
+  "problem": "Compute $25 \\times 3$.",
+  "solution": "We have $25 \\times 3 = 75$, so the answer is $\\boxed{75}$.",
+  "answer": "75",
+  "subject": "Number Theory",
+  "level": 4,
+  "unique_id": "test/number_theory/123.json"
+ },
+ {
+  "problem": "Compute $26 \\times 3$.",
+  "solution": "We have $26 \\times 3 = 78$, so the answer is $\\boxed{78}$.",
+  "answer": "78",
+  "subject": "Algebra",
+  "level": 5,
+  "unique_id": "test/algebra/124.json"
+ },
+ {
+  "problem": "Compute $27 \\times 3$.",
+  "solution": "We have $27 \\times 3 = 81$, so the answer is $\\boxed{81}$.",
+  "answer": "81",
+  "subject": "Prealgebra",
+  "level": 1,
+  "unique_id": "test/prealgebra/125.json"
+ },
+ {
+  "problem": "Compute $28 \\times 3$.",
+  "solution": "We have $28 \\times 3 = 84$, so the answer is $\\boxed{84}$.",
+  "answer": "84",
+  "subject": "Geometry",
+  "level": 2,
+  "unique_id": "test/geometry/126.json"
+ },
+ {
+  "problem": "Compute $29 \\times 3$.",
+  "solution": "We have $29 \\times 3 = 87$, so the answer is $\\boxed{87}$.",
+  "answer": "87",
+  "subject": "Number Theory",
+  "level": 3,
+  "unique_id": "test/number_theory/127.json"
+ },
+ {
+  "problem": "Compute $30 \\times 3$.",
+  "solution": "We have $30 \\times 3 = 90$, so the answer is $\\boxed{90}$.",
+  "answer": "90",
+  "subject": "Algebra",
+  "level": 4,
+  "unique_id": "test/algebra/128.json"
+ },
+ {
+  "problem": "Compute $31 \\times 3$.",
+  "solution": "We have $31 \\times 3 = 93$, so the answer is $\\boxed{93}$.",
+  "answer": "93",
+  "subject": "Prealgebra",
+  "level": 5,
+  "unique_id": "test/prealgebra/129.json"
+ },
+ {
+  "problem": "Compute $32 \\times 3$.",
+  "solution": "We have $32 \\times 3 = 96$, so the answer is $\\boxed{96}$.",
+  "answer": "96",
+  "subject": "Geometry",
+  "level": 1,
+  "unique_id": "test/geometry/130.json"
+ },
+ {
+  "problem": "Compute $33 \\times 3$.",
+  "solution": "We have $33 \\times 3 = 99$, so the answer is $\\boxed{99}$.",
+  "answer": "99",
+  "subject": "Number Theory",
+  "level": 2,
+  "unique_id": "test/number_theory/131.json"
+ },
+ {
+  "problem": "Compute $34 \\times 3$.",
+  "solution": "We have $34 \\times 3 = 102$, so the answer is $\\boxed{102}$.",
+  "answer": "102",
+  "subject": "Algebra",
+  "level": 3,
+  "unique_id": "test/algebra/132.json"
+ },
+ {
+  "problem": "Compute $35 \\times 3$.",
+  "solution": "We have $35 \\times 3 = 105$, so the answer is $\\boxed{105}$.",
+  "answer": "105",
+  "subject": "Prealgebra",
+  "level": 4,
+  "unique_id": "test/prealgebra/133.json"
+ },
+ {
+  "problem": "Compute $36 \\times 3$.",
+  "solution": "We have $36 \\times 3 = 108$, so the answer is $\\boxed{108}$.",
+  "answer": "108",
+  "subject": "Geometry",
+  "level": 5,
+  "unique_id": "test/geometry/134.json"
+ },
+ {
+  "problem": "Compute $37 \\times 3$.",
+  "solution": "We have $37 \\times 3 = 111$, so the answer is $\\boxed{111}$.",
+  "answer": "111",
+  "subject": "Number Theory",
+  "level": 1,
+  "unique_id": "test/number_theory/135.json"
+ },
+ {
+  "problem": "Compute $38 \\times 3$.",
+  "solution": "We have $38 \\times 3 = 114$, so the answer is $\\boxed{114}$.",
+  "answer": "114",
+  "subject": "Algebra",
+  "level": 2,
+  "unique_id": "test/algebra/136.json"
+ },
+ {
+  "problem": "Compute $39 \\times 3$.",
+  "solution": "We have $39 \\times 3 = 117$, so the answer is $\\boxed{117}$.",
+  "answer": "117",
+  "subject": "Prealgebra",
+  "level": 3,
+  "unique_id": "test/prealgebra/137.json"
+ },
+ {
+  "problem": "Compute $40 \\times 3$.",
+  "solution": "We have $40 \\times 3 = 120$, so the answer is $\\boxed{120}$.",
+  "answer": "120",
+  "subject": "Geometry",
+  "level": 4,
+  "unique_id": "test/geometry/138.json"
+ },
+ {
+  "problem": "Compute $41 \\times 3$.",
+  "solution": "We have $41 \\times 3 = 123$, so the answer is $\\boxed{123}$.",
+  "answer": "123",
+  "subject": "Number Theory",
+  "level": 5,
+  "unique_id": "test/number_theory/139.json"
+ }
+]
