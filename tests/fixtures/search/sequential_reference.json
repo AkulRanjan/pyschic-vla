@@ -1,0 +1,1454 @@
+[
+ {
+  "case": {
+   "seed": 0,
+   "n_simulations": 32,
+   "k": 3
+  },
+  "answer": "13",
+  "tree_dump": {
+   "id": 0,
+   "step": "",
+   "N": 32,
+   "Q": 0.5906,
+   "prior": 1.0,
+   "value": 0.9,
+   "terminal": false,
+   "final_answer": null,
+   "children": [
+    {
+     "id": 1,
+     "step": "add 1 -> 1",
+     "N": 13,
+     "Q": 0.7923,
+     "prior": 0.15,
+     "value": 0.9,
+     "terminal": false,
+     "final_answer": null,
+     "children": [
+      {
+       "id": 2,
+       "step": "add 2 -> 3",
+       "N": 6,
+       "Q": 0.9333,
+       "prior": 0.25,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 3,
+         "step": "add 5 -> 8",
+         "N": 5,
+         "Q": 0.94,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 4,
+           "step": "add 2 -> 10",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.25,
+           "value": null,
+           "terminal": false,
+           "final_answer": null,
+           "children": []
+          },
+          {
+           "id": 5,
+           "step": "add 1 -> 9",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": false,
+           "final_answer": null,
+           "children": []
+          },
+          {
+           "id": 6,
+           "step": "add 5 -> 13. \\boxed{13}",
+           "N": 4,
+           "Q": 0.95,
+           "prior": 0.6,
+           "value": 0.95,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 7,
+         "step": "add 2 -> 5",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 8,
+         "step": "add 1 -> 4",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      },
+      {
+       "id": 9,
+       "step": "add 1 -> 2",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.15,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      },
+      {
+       "id": 10,
+       "step": "add 5 -> 6",
+       "N": 6,
+       "Q": 0.6333,
+       "prior": 0.6,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 11,
+         "step": "add 5 -> 11",
+         "N": 5,
+         "Q": 0.58,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 12,
+           "step": "add 2 -> 13. \\boxed{13}",
+           "N": 2,
+           "Q": 0.95,
+           "prior": 0.25,
+           "value": 0.95,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 13,
+           "step": "add 1 -> 12",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": false,
+           "final_answer": null,
+           "children": []
+          },
+          {
+           "id": 14,
+           "step": "add 5 -> 16. \\boxed{16}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "16",
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 15,
+         "step": "add 2 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 16,
+         "step": "add 1 -> 7",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": 17,
+     "step": "add 5 -> 5",
+     "N": 12,
+     "Q": 0.4042,
+     "prior": 0.6,
+     "value": 0.9,
+     "terminal": false,
+     "final_answer": null,
+     "children": [
+      {
+       "id": 18,
+       "step": "add 5 -> 10",
+       "N": 7,
+       "Q": 0.2929,
+       "prior": 0.6,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 19,
+         "step": "add 5 -> 15. \\boxed{15}",
+         "N": 3,
+         "Q": 0.05,
+         "prior": 0.6,
+         "value": 0.05,
+         "terminal": true,
+         "final_answer": "15",
+         "children": []
+        },
+        {
+         "id": 20,
+         "step": "add 2 -> 12",
+         "N": 3,
+         "Q": 0.3333,
+         "prior": 0.25,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 21,
+           "step": "add 1 -> 13. \\boxed{13}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 22,
+           "step": "add 2 -> 14. \\boxed{14}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.25,
+           "value": null,
+           "terminal": true,
+           "final_answer": "14",
+           "children": []
+          },
+          {
+           "id": 23,
+           "step": "add 5 -> 17. \\boxed{17}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "17",
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 24,
+         "step": "add 1 -> 11",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      },
+      {
+       "id": 25,
+       "step": "add 1 -> 6",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.15,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      },
+      {
+       "id": 26,
+       "step": "add 2 -> 7",
+       "N": 4,
+       "Q": 0.475,
+       "prior": 0.25,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 27,
+         "step": "add 2 -> 9",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 28,
+         "step": "add 5 -> 12",
+         "N": 3,
+         "Q": 0.3333,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 29,
+           "step": "add 2 -> 14. \\boxed{14}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.25,
+           "value": null,
+           "terminal": true,
+           "final_answer": "14",
+           "children": []
+          },
+          {
+           "id": 30,
+           "step": "add 5 -> 17. \\boxed{17}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "17",
+           "children": []
+          },
+          {
+           "id": 31,
+           "step": "add 1 -> 13. \\boxed{13}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 32,
+         "step": "add 1 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": 33,
+     "step": "add 2 -> 2",
+     "N": 6,
+     "Q": 0.475,
+     "prior": 0.25,
+     "value": 0.9,
+     "terminal": false,
+     "final_answer": null,
+     "children": [
+      {
+       "id": 34,
+       "step": "add 2 -> 4",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.25,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      },
+      {
+       "id": 35,
+       "step": "add 1 -> 3",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.15,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      },
+      {
+       "id": 36,
+       "step": "add 5 -> 7",
+       "N": 5,
+       "Q": 0.39,
+       "prior": 0.6,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 37,
+         "step": "add 2 -> 9",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 38,
+         "step": "add 1 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 39,
+         "step": "add 5 -> 12",
+         "N": 4,
+         "Q": 0.2625,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 40,
+           "step": "add 2 -> 14. \\boxed{14}",
+           "N": 1,
+           "Q": 0.05,
+           "prior": 0.25,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "14",
+           "children": []
+          },
+          {
+           "id": 41,
+           "step": "add 1 -> 13. \\boxed{13}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 42,
+           "step": "add 5 -> 17. \\boxed{17}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "17",
+           "children": []
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "case": {
+   "seed": 1,
+   "n_simulations": 32,
+   "k": 4
+  },
+  "answer": "13",
+  "tree_dump": {
+   "id": 0,
+   "step": "",
+   "N": 32,
+   "Q": 0.5906,
+   "prior": 1.0,
+   "value": 0.9,
+   "terminal": false,
+   "final_answer": null,
+   "children": [
+    {
+     "id": 1,
+     "step": "add 1 -> 1",
+     "N": 13,
+     "Q": 0.7923,
+     "prior": 0.15,
+     "value": 0.9,
+     "terminal": false,
+     "final_answer": null,
+     "children": [
+      {
+       "id": 2,
+       "step": "add 1 -> 2",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.15,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      },
+      {
+       "id": 3,
+       "step": "add 2 -> 3",
+       "N": 6,
+       "Q": 0.9333,
+       "prior": 0.25,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 4,
+         "step": "add 5 -> 8",
+         "N": 5,
+         "Q": 0.94,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 5,
+           "step": "add 5 -> 13. \\boxed{13}",
+           "N": 4,
+           "Q": 0.95,
+           "prior": 0.6,
+           "value": 0.95,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 6,
+           "step": "add 2 -> 10",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.25,
+           "value": null,
+           "terminal": false,
+           "final_answer": null,
+           "children": []
+          },
+          {
+           "id": 7,
+           "step": "add 1 -> 9",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": false,
+           "final_answer": null,
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 8,
+         "step": "add 1 -> 4",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 9,
+         "step": "add 2 -> 5",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      },
+      {
+       "id": 10,
+       "step": "add 5 -> 6",
+       "N": 6,
+       "Q": 0.6333,
+       "prior": 0.6,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 11,
+         "step": "add 2 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 12,
+         "step": "add 1 -> 7",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 13,
+         "step": "add 5 -> 11",
+         "N": 5,
+         "Q": 0.58,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 14,
+           "step": "add 1 -> 12",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": false,
+           "final_answer": null,
+           "children": []
+          },
+          {
+           "id": 15,
+           "step": "add 5 -> 16. \\boxed{16}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "16",
+           "children": []
+          },
+          {
+           "id": 16,
+           "step": "add 2 -> 13. \\boxed{13}",
+           "N": 2,
+           "Q": 0.95,
+           "prior": 0.25,
+           "value": 0.95,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": 17,
+     "step": "add 5 -> 5",
+     "N": 12,
+     "Q": 0.4042,
+     "prior": 0.6,
+     "value": 0.9,
+     "terminal": false,
+     "final_answer": null,
+     "children": [
+      {
+       "id": 18,
+       "step": "add 1 -> 6",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.15,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      },
+      {
+       "id": 19,
+       "step": "add 2 -> 7",
+       "N": 4,
+       "Q": 0.475,
+       "prior": 0.25,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 20,
+         "step": "add 5 -> 12",
+         "N": 3,
+         "Q": 0.3333,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 21,
+           "step": "add 1 -> 13. \\boxed{13}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 22,
+           "step": "add 2 -> 14. \\boxed{14}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.25,
+           "value": null,
+           "terminal": true,
+           "final_answer": "14",
+           "children": []
+          },
+          {
+           "id": 23,
+           "step": "add 5 -> 17. \\boxed{17}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "17",
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 24,
+         "step": "add 2 -> 9",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 25,
+         "step": "add 1 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      },
+      {
+       "id": 26,
+       "step": "add 5 -> 10",
+       "N": 7,
+       "Q": 0.2929,
+       "prior": 0.6,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 27,
+         "step": "add 2 -> 12",
+         "N": 3,
+         "Q": 0.3333,
+         "prior": 0.25,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 28,
+           "step": "add 5 -> 17. \\boxed{17}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "17",
+           "children": []
+          },
+          {
+           "id": 29,
+           "step": "add 1 -> 13. \\boxed{13}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 30,
+           "step": "add 2 -> 14. \\boxed{14}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.25,
+           "value": null,
+           "terminal": true,
+           "final_answer": "14",
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 31,
+         "step": "add 1 -> 11",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 32,
+         "step": "add 5 -> 15. \\boxed{15}",
+         "N": 3,
+         "Q": 0.05,
+         "prior": 0.6,
+         "value": 0.05,
+         "terminal": true,
+         "final_answer": "15",
+         "children": []
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": 33,
+     "step": "add 2 -> 2",
+     "N": 6,
+     "Q": 0.475,
+     "prior": 0.25,
+     "value": 0.9,
+     "terminal": false,
+     "final_answer": null,
+     "children": [
+      {
+       "id": 34,
+       "step": "add 1 -> 3",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.15,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      },
+      {
+       "id": 35,
+       "step": "add 5 -> 7",
+       "N": 5,
+       "Q": 0.39,
+       "prior": 0.6,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 36,
+         "step": "add 5 -> 12",
+         "N": 4,
+         "Q": 0.2625,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 37,
+           "step": "add 5 -> 17. \\boxed{17}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "17",
+           "children": []
+          },
+          {
+           "id": 38,
+           "step": "add 1 -> 13. \\boxed{13}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 39,
+           "step": "add 2 -> 14. \\boxed{14}",
+           "N": 1,
+           "Q": 0.05,
+           "prior": 0.25,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "14",
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 40,
+         "step": "add 1 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 41,
+         "step": "add 2 -> 9",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      },
+      {
+       "id": 42,
+       "step": "add 2 -> 4",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.25,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "case": {
+   "seed": 2,
+   "n_simulations": 24,
+   "k": 3,
+   "root_dirichlet_alpha": 0.3
+  },
+  "answer": "17",
+  "tree_dump": {
+   "id": 0,
+   "step": "",
+   "N": 24,
+   "Q": 0.5854,
+   "prior": 1.0,
+   "value": 0.9,
+   "terminal": false,
+   "final_answer": null,
+   "children": [
+    {
+     "id": 1,
+     "step": "add 5 -> 5",
+     "N": 10,
+     "Q": 0.475,
+     "prior": 0.5517,
+     "value": 0.9,
+     "terminal": false,
+     "final_answer": null,
+     "children": [
+      {
+       "id": 2,
+       "step": "add 5 -> 10",
+       "N": 5,
+       "Q": 0.39,
+       "prior": 0.6,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 3,
+         "step": "add 1 -> 11",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 4,
+         "step": "add 5 -> 15. \\boxed{15}",
+         "N": 2,
+         "Q": 0.05,
+         "prior": 0.6,
+         "value": 0.05,
+         "terminal": true,
+         "final_answer": "15",
+         "children": []
+        },
+        {
+         "id": 5,
+         "step": "add 2 -> 12",
+         "N": 2,
+         "Q": 0.475,
+         "prior": 0.25,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 6,
+           "step": "add 1 -> 13. \\boxed{13}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 7,
+           "step": "add 5 -> 17. \\boxed{17}",
+           "N": 1,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "17",
+           "children": []
+          },
+          {
+           "id": 8,
+           "step": "add 2 -> 14. \\boxed{14}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.25,
+           "value": null,
+           "terminal": true,
+           "final_answer": "14",
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": 9,
+       "step": "add 2 -> 7",
+       "N": 4,
+       "Q": 0.475,
+       "prior": 0.25,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 10,
+         "step": "add 5 -> 12",
+         "N": 3,
+         "Q": 0.3333,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 11,
+           "step": "add 5 -> 17. \\boxed{17}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "17",
+           "children": []
+          },
+          {
+           "id": 12,
+           "step": "add 1 -> 13. \\boxed{13}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 13,
+           "step": "add 2 -> 14. \\boxed{14}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.25,
+           "value": null,
+           "terminal": true,
+           "final_answer": "14",
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 14,
+         "step": "add 1 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 15,
+         "step": "add 2 -> 9",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      },
+      {
+       "id": 16,
+       "step": "add 1 -> 6",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.15,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      }
+     ]
+    },
+    {
+     "id": 17,
+     "step": "add 2 -> 2",
+     "N": 5,
+     "Q": 0.56,
+     "prior": 0.2108,
+     "value": 0.9,
+     "terminal": false,
+     "final_answer": null,
+     "children": [
+      {
+       "id": 18,
+       "step": "add 1 -> 3",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.15,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      },
+      {
+       "id": 19,
+       "step": "add 5 -> 7",
+       "N": 4,
+       "Q": 0.475,
+       "prior": 0.6,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 20,
+         "step": "add 2 -> 9",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 21,
+         "step": "add 5 -> 12",
+         "N": 3,
+         "Q": 0.3333,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 22,
+           "step": "add 5 -> 17. \\boxed{17}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "17",
+           "children": []
+          },
+          {
+           "id": 23,
+           "step": "add 2 -> 14. \\boxed{14}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.25,
+           "value": null,
+           "terminal": true,
+           "final_answer": "14",
+           "children": []
+          },
+          {
+           "id": 24,
+           "step": "add 1 -> 13. \\boxed{13}",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          }
+         ]
+        },
+        {
+         "id": 25,
+         "step": "add 1 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      },
+      {
+       "id": 26,
+       "step": "add 2 -> 4",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.25,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      }
+     ]
+    },
+    {
+     "id": 27,
+     "step": "add 1 -> 1",
+     "N": 8,
+     "Q": 0.7,
+     "prior": 0.2375,
+     "value": 0.9,
+     "terminal": false,
+     "final_answer": null,
+     "children": [
+      {
+       "id": 28,
+       "step": "add 2 -> 3",
+       "N": 1,
+       "Q": 0.9,
+       "prior": 0.25,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 29,
+         "step": "add 5 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.6,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 30,
+         "step": "add 2 -> 5",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 31,
+         "step": "add 1 -> 4",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        }
+       ]
+      },
+      {
+       "id": 32,
+       "step": "add 5 -> 6",
+       "N": 6,
+       "Q": 0.6333,
+       "prior": 0.6,
+       "value": 0.9,
+       "terminal": false,
+       "final_answer": null,
+       "children": [
+        {
+         "id": 33,
+         "step": "add 2 -> 8",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.25,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 34,
+         "step": "add 1 -> 7",
+         "N": 0,
+         "Q": 0.0,
+         "prior": 0.15,
+         "value": null,
+         "terminal": false,
+         "final_answer": null,
+         "children": []
+        },
+        {
+         "id": 35,
+         "step": "add 5 -> 11",
+         "N": 5,
+         "Q": 0.58,
+         "prior": 0.6,
+         "value": 0.9,
+         "terminal": false,
+         "final_answer": null,
+         "children": [
+          {
+           "id": 36,
+           "step": "add 1 -> 12",
+           "N": 0,
+           "Q": 0.0,
+           "prior": 0.15,
+           "value": null,
+           "terminal": false,
+           "final_answer": null,
+           "children": []
+          },
+          {
+           "id": 37,
+           "step": "add 2 -> 13. \\boxed{13}",
+           "N": 2,
+           "Q": 0.95,
+           "prior": 0.25,
+           "value": 0.95,
+           "terminal": true,
+           "final_answer": "13",
+           "children": []
+          },
+          {
+           "id": 38,
+           "step": "add 5 -> 16. \\boxed{16}",
+           "N": 2,
+           "Q": 0.05,
+           "prior": 0.6,
+           "value": 0.05,
+           "terminal": true,
+           "final_answer": "16",
+           "children": []
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": 39,
+       "step": "add 1 -> 2",
+       "N": 0,
+       "Q": 0.0,
+       "prior": 0.15,
+       "value": null,
+       "terminal": false,
+       "final_answer": null,
+       "children": []
+      }
+     ]
+    }
+   ]
+  }
+ }
+]

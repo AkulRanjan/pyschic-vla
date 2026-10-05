@@ -1,8 +1,5 @@
 """MCTS over reasoning steps (SPEC.md §4, §6). Owner: Person 1 (Prakhar).
 
-Phase P3: sequential (one simulation at a time). Phase P5 adds concurrent simulations with
-virtual loss; only ``_simulate`` and the driver loop in ``search`` change for that.
-
 One simulation = select (PUCT) -> expand a leaf OR evaluate a terminal -> backup.
 - Expansion: ``generator.propose`` k steps -> dedupe -> ONE ``judge.prior_and_value`` call on
   the unique candidates -> children. The leaf's value is the judge's V(s).
@@ -10,12 +7,24 @@ One simulation = select (PUCT) -> expand a leaf OR evaluate a terminal -> backup
 - Backup: ``N += 1``, ``W += v`` for every node on the path, root included. Single-agent:
   values are never negated.
 
+Concurrency (SPEC.md §6.2): ``cfg.parallel_sims`` workers in a TaskGroup each run simulations
+until ``cfg.n_simulations`` have completed.
+- Selection and backup contain no ``await``, so they are atomic on the event loop: no locks.
+- Virtual loss is added to the whole path once selection is done and always removed in a
+  ``finally``. A simulation never sees its own virtual loss, so ``parallel_sims=1`` reproduces
+  the sequential search exactly.
+- ``node.expanding`` is set while a node is being expanded or judged. Other simulations that
+  reach it await that future instead of calling the models again, then continue from it.
+- A failed simulation backs up nothing and is retried, up to ``max_failures`` in total.
+
 ``search`` never receives the ground-truth answer: only the question string.
 """
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import logging
 import random
 from dataclasses import dataclass, field
 from typing import Any
@@ -36,6 +45,8 @@ from thoughtzero.search.extract import (
 from thoughtzero.search.node import Node
 from thoughtzero.search.puct import dirichlet_noise, select_child
 from thoughtzero.types import Generator, Judge
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -58,6 +69,8 @@ class _Ctx:
     expansions: int = 0
     terminal_evals: int = 0
     dead_ends: int = 0
+    shared_evals: int = 0  # simulations that awaited another simulation's evaluation
+    failed_simulations: int = 0
 
 
 def is_final_step(text: str) -> bool:
@@ -122,17 +135,102 @@ async def _expand(node: Node, ctx: _Ctx) -> float:
     return value
 
 
-async def _simulate(root: Node, ctx: _Ctx) -> None:
-    path, node = [root], root
-    while node.children and not node.terminal:
-        node = select_child(node, ctx.cfg.c_puct, ctx.cfg.fpu_value)
-        path.append(node)
+async def _evaluate(node: Node, ctx: _Ctx) -> float:
+    """Expand ``node`` or judge it if terminal: one model call per node, cached afterwards.
 
-    if node.terminal:
-        value = await _evaluate_terminal(node, ctx)
+    The caller has already waited out any evaluation in flight (``node.expanding``).
+    """
+    if node.terminal and node.value is not None:
+        return node.value
+    future: asyncio.Future[None] = asyncio.get_running_loop().create_future()
+    node.expanding = future
+    try:
+        value = await (_evaluate_terminal(node, ctx) if node.terminal else _expand(node, ctx))
+    except asyncio.CancelledError:
+        future.cancel()
+        raise
+    except Exception as exc:
+        future.set_exception(exc)
+        future.exception()  # mark retrieved: there may be no waiters
+        raise
     else:
-        value = await _expand(node, ctx)
-    backup(path, value)
+        future.set_result(None)
+        return value
+    finally:
+        node.expanding = None  # a failed evaluation can be retried by a later simulation
+
+
+def _select(node: Node, cfg: SearchCfg) -> list[Node]:
+    """PUCT descent from ``node`` (included) to a leaf or terminal. Synchronous, so atomic."""
+    path = [node]
+    while node.children and not node.terminal:
+        node = select_child(node, cfg.c_puct, cfg.fpu_value)
+        path.append(node)
+    return path
+
+
+async def _simulate(root: Node, ctx: _Ctx) -> None:
+    """Select -> evaluate -> backup, with virtual loss on the path while in flight.
+
+    If the selected leaf is being evaluated by another simulation, wait for it, then keep
+    descending from it (it now has children), so every simulation explores a new state.
+    SPEC.md §6.2 backs up the shared leaf value instead; with several simulations in flight
+    that spends a large share of the budget re-visiting the leaf expanded first.
+    """
+    vl = ctx.cfg.virtual_loss
+    path: list[Node] = []
+    segment = _select(root, ctx.cfg)
+    try:
+        while True:
+            for n in segment:
+                n.virtual_loss += vl
+            path.extend(segment)
+            leaf = path[-1]
+            if leaf.expanding is None:
+                value = await _evaluate(leaf, ctx)
+                break
+            ctx.shared_evals += 1
+            await leaf.expanding  # re-raises the evaluating simulation's exception
+            if leaf.terminal:  # judged terminal, or a dead end, by the other simulation
+                assert leaf.value is not None
+                value = leaf.value
+                break
+            segment = _select(leaf, ctx.cfg)[1:]
+        backup(path, value)
+    finally:
+        for n in path:
+            n.virtual_loss -= vl
+
+
+async def _run_simulations(root: Node, ctx: _Ctx, max_failures: int) -> None:
+    """Run until ``n_simulations`` complete; failed ones are retried within ``max_failures``."""
+    target = ctx.cfg.n_simulations
+    claimed = 0  # completed + in flight
+    last_error: Exception | None = None
+
+    async def worker() -> None:
+        nonlocal claimed, last_error
+        while claimed < target and ctx.failed_simulations < max_failures:
+            claimed += 1
+            try:
+                await _simulate(root, ctx)
+            except Exception as exc:
+                claimed -= 1
+                ctx.failed_simulations += 1
+                last_error = exc
+                log.warning("simulation failed (%d so far): %r", ctx.failed_simulations, exc)
+
+    async with asyncio.TaskGroup() as tg:
+        for _ in range(max(1, min(ctx.cfg.parallel_sims, target))):
+            tg.create_task(worker())
+
+    if last_error is not None:
+        if root.N == 0:
+            raise last_error
+        if target > root.N:
+            log.warning(
+                "search stopped after %d failures: %d/%d done", max_failures, root.N, target
+            )
 
 
 def _count(root: Node) -> tuple[int, int, int]:
@@ -157,18 +255,20 @@ async def search(
     seed: int = 0,
     extract: ExtractFn | None = None,
     normalize: NormalizeFn | None = None,
+    max_failures: int | None = None,
 ) -> SearchResult:
     """Run ``cfg.n_simulations`` simulations and extract an answer (``cfg.extract_mode``).
 
     ``extract`` / ``normalize`` default to ``data.grading``; tests inject toy versions.
+    ``max_failures`` (default ``n_simulations``) caps failed simulations. If it is reached,
+    the search stops early, or re-raises the last error if no simulation completed.
     """
     extract = extract or default_extract
     normalize = normalize or default_normalize
     ctx = _Ctx(problem, generator, judge, cfg, extract, _problem_rng(problem, seed))
     root = Node(steps=[])
 
-    for _ in range(cfg.n_simulations):
-        await _simulate(root, ctx)
+    await _run_simulations(root, ctx, cfg.n_simulations if max_failures is None else max_failures)
 
     # value_vote is free; most_visited may call the generator to finish a non-terminal path,
     # so only the configured mode is allowed to spend tokens.
@@ -188,6 +288,8 @@ async def search(
         "expansions": ctx.expansions,
         "terminal_evals": ctx.terminal_evals,
         "dead_ends": ctx.dead_ends,
+        "shared_evals": ctx.shared_evals,
+        "failed_simulations": ctx.failed_simulations,
         "n_nodes": n_nodes,
         "n_terminal_nodes": n_terminals,
         "max_depth": max_depth,
