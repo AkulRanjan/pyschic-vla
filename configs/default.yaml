@@ -1,0 +1,26 @@
+# SPEC.md §6.4 defaults. Shared file: change by PR tagged to all four.
+generator:
+  base_url: ${GEMMA_BASE_URL:-http://localhost:8000/v1}
+  model: ${GEMMA_MODEL:-google/gemma-4-E4B-it}
+  temperature: 0.9
+  top_p: 0.95
+  max_step_tokens: 256
+  stop: ["\n\nStep", "\n\n\n"]
+judge:
+  kind: jev                     # jev | self | prm | uniform | hybrid
+  jev_model: jev-1.13.0
+  prior_mode: choice            # choice | per_candidate_noul
+  max_concurrency: 16
+search:
+  n_simulations: 32
+  k: 4
+  c_puct: 1.5
+  fpu_value: 0.0
+  parallel_sims: 8
+  virtual_loss: 1
+  max_depth: 20
+  extract_mode: most_visited    # most_visited | value_vote
+  root_dirichlet_alpha: null
+budget:
+  max_usd: 5.0
+seed: 0
