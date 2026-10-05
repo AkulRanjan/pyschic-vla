@@ -1,0 +1,9 @@
+# Baseline C (SPEC.md §8.1): the large-model ceiling, Gemma 4 31B on the same route as the
+# generator (results/DECISIONS.md). Chain-of-thought, one greedy solution per problem.
+#   python scripts/run_experiment.py --config configs/c31b.yaml --run-id c31b_math500
+base: exp_main.yaml
+generator:
+  model: ${GEMMA_31B_MODEL:-google/gemma-4-31b-it}   # Gemini API: gemma-4-31b-it
+  tokenizer: google/gemma-4-31B-it
+eval:
+  methods: [c31b]

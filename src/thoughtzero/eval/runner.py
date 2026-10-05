@@ -573,6 +573,44 @@ def estimate_jev_usd(cfg: Config, n_problems: int, methods: Sequence[Method]) ->
     return calls * JEV_TOKENS_PER_CALL * per_token
 
 
+# Hosted-Gemma estimate: (prompt, completion) tokens per call, from real Gemma 4 26B calls
+# (2026-10-05): a next-step prompt carries the steps so far (~900 tokens on hard problems);
+# a full level-5 solution is ~1,000 tokens; a judge question needs 1 output token.
+GEMMA_STEP_CALL = (900, 80)
+GEMMA_SOLUTION_CALL = (300, 800)
+GEMMA_CONTINUATION_CALL = (800, 550)  # finish a partial solution (pilot labels)
+GEMMA_JUDGE_CALL = (700, 1)
+SELF_JUDGE_METHODS = {"tz_self", "tz_prm"}  # use Gemma itself as a judge
+
+
+def gemma_call_usd(cfg: Config, call: tuple[int, int], n_calls: float = 1.0) -> float:
+    g = cfg.generator
+    return n_calls * (call[0] * g.usd_per_mtok_in + call[1] * g.usd_per_mtok_out) / 1e6
+
+
+def estimate_gemma_usd(cfg: Config, n_problems: int, methods: Sequence[Method]) -> float:
+    """Rough hosted-Gemma USD for running `methods` (0 when the prices are 0: free tier or
+    self-hosted). Search: k next-step calls per simulation plus one final completion."""
+    if not (cfg.generator.usd_per_mtok_in or cfg.generator.usd_per_mtok_out):
+        return 0.0
+    total = 0.0
+    for m in methods:
+        p = method_params(m)
+        if "n_simulations" in p:
+            sims = int(p["n_simulations"])
+            per = gemma_call_usd(cfg, GEMMA_STEP_CALL, sims * cfg.search.k)
+            per += gemma_call_usd(cfg, GEMMA_SOLUTION_CALL)
+            if m.name in SELF_JUDGE_METHODS:
+                per += gemma_call_usd(cfg, GEMMA_JUDGE_CALL, 2 * sims)
+        elif getattr(m, "stored", None):  # best-of-N reranking stored samples: no new samples
+            per = 0.0
+        else:
+            n = getattr(m, "n_max", None) or int(p.get("n", 1))
+            per = gemma_call_usd(cfg, GEMMA_SOLUTION_CALL, n)
+        total += n_problems * per
+    return total
+
+
 def check_cost(estimate_usd: float, yes: bool, threshold_usd: float = 1.0) -> None:
     """Print the estimate; refuse above the threshold unless --yes (team rule B8)."""
     print(f"Estimated Jev cost: ${estimate_usd:.4f} (confirmation threshold ${threshold_usd:.2f})")

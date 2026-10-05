@@ -31,6 +31,7 @@ from typing import Any
 
 from thoughtzero.accounting import record_search
 from thoughtzero.config import SearchCfg
+from thoughtzero.judge.budget import BudgetExceeded
 from thoughtzero.search.dedupe import dedupe
 from thoughtzero.search.extract import (
     ExtractFn,
@@ -216,15 +217,23 @@ async def _run_simulations(root: Node, ctx: _Ctx, max_failures: int) -> None:
             claimed += 1
             try:
                 await _simulate(root, ctx)
+            except BudgetExceeded:
+                raise  # stops the run (the runner catches it); retrying would only fail again
             except Exception as exc:
                 claimed -= 1
                 ctx.failed_simulations += 1
                 last_error = exc
                 log.warning("simulation failed (%d so far): %r", ctx.failed_simulations, exc)
 
-    async with asyncio.TaskGroup() as tg:
-        for _ in range(max(1, min(ctx.cfg.parallel_sims, target))):
-            tg.create_task(worker())
+    try:
+        async with asyncio.TaskGroup() as tg:
+            for _ in range(max(1, min(ctx.cfg.parallel_sims, target))):
+                tg.create_task(worker())
+    except BaseExceptionGroup as group:  # TaskGroup wraps errors; callers expect a bare one
+        budget_stop = [e for e in group.exceptions if isinstance(e, BudgetExceeded)]
+        if budget_stop:
+            raise budget_stop[0] from None
+        raise
 
     if last_error is not None:
         if root.N == 0:

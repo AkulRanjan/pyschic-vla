@@ -119,11 +119,14 @@ async def run_real(cfg: Config, generator: Generator, judge: Judge) -> SmokeSumm
 
 
 def _check_gemma_server(base_url: str) -> str | None:
-    """None if the OpenAI-compatible server answers ``/models``, else what went wrong."""
+    """None if the server answers at all, else what went wrong.
+
+    Any HTTP reply counts (hosted APIs may answer an unauthenticated ``/models`` with 401 or
+    404); only connection failures mean nothing is there.
+    """
     try:
-        resp = httpx.get(base_url.rstrip("/") + "/models", timeout=10)
-        resp.raise_for_status()
-    except httpx.HTTPError as e:
+        httpx.get(base_url.rstrip("/") + "/models", timeout=10)
+    except httpx.TransportError as e:
         return f"{type(e).__name__}: {e}"
     return None
 

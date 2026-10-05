@@ -28,6 +28,7 @@ class Ledger:
     gemma_prompt_tokens: int = 0
     gemma_completion_tokens: int = 0
     gemma_calls: int = 0
+    gemma_usd: float = 0.0  # hosted Gemma only (generator.usd_per_mtok_*); 0 if self-hosted
     jev_calls: int = 0
     jev_cache_hits: int = 0
     jev_input_tokens: int = 0
@@ -44,13 +45,14 @@ class Ledger:
 current_ledger: ContextVar[Ledger | None] = ContextVar("current_ledger", default=None)
 
 
-def record_gemma(prompt_tokens: int, completion_tokens: int) -> None:
+def record_gemma(prompt_tokens: int, completion_tokens: int, usd: float = 0.0) -> None:
     ledger = current_ledger.get()
     if ledger is None:
         return
     ledger.gemma_calls += 1
     ledger.gemma_prompt_tokens += prompt_tokens
     ledger.gemma_completion_tokens += completion_tokens
+    ledger.gemma_usd += usd
 
 
 def record_jev(input_tokens: int, usd: float, cache_hit: bool) -> None:

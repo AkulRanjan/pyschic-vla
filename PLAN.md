@@ -8,28 +8,32 @@ parentheses refer to `SPEC.md` §10.
 
 ## 1. Where the project stands
 
-All code paths run end to end **offline** (mock generator and judge): `pytest` (362 tests),
-`smoke_test.py --mock`, `run_experiment.py --mock` with every method, and
-`run_pilot.py --stage all --mock`, including the prompt-sensitivity stage.
+**Code complete (2026-10-05); the experiments haven't run.** The owner paused all paid runs
+until API credit is sorted out; `RUNBOOK.md` has every remaining run in order, with costs
+(≈ $90–100 for the full plan on OpenRouter, ≈ $15–20 for a smaller study).
 
-| Area | Status | What's missing |
-|---|---|---|
-| Scaffold: config, types, accounting, mocks, CI | ✅ done | — |
-| Search: PUCT, dedupe, extract, MCTS (sequential + async with virtual loss), tree dumps, `view_tree.py` | ✅ done | Tuning on real data |
-| Generator: `OpenAICompatibleGenerator`, Gemma prompts, tokenizer | ✅ done, offline-tested | Never run against a real Gemma server |
-| Data and grading: MATH-500, MATH train, AIME 2024–26, `math-verify` grading | ✅ done (grader checked 500/500 on MATH-500) | — |
-| Baselines: CoT (B1), self-consistency (B2), best-of-N (B3), 31B ceiling (C) | ✅ done | Real runs |
-| Judge: `JevJudge` (cache, budget cap, prior modes, truncation, shuffle), uniform, constant, hybrid, factory | ✅ done; real HTTP routes to Jev (direct, OpenRouter, OpenCode Zen, Vercel) built to the official API docs and tested offline | **An API key** (S0); then one real call to confirm (`probe_jev.py`) |
-| Judge: `GemmaSelfJudge` (B4) | ✅ done; checked on real Gemma 26B | Quality measured in the pilot (D12) |
-| Judge: `PRMJudge` (B5) | ❌ not built | Needs a ~15 GB local GPU (D7) |
-| Eval: runner (resumable, shardable), metrics, plots, analysis | ✅ done | Real runs |
-| Pilot: traces, Monte Carlo labels, judge scores, sensitivity, report with GO / PARTIAL / NO-GO | ✅ done | Real run |
-| Generator serving: **Gemma 4 26B-A4B on OpenRouter** (`generator.api=chat`). Self-hosted alternatives kept: `notebooks/colab_gemma.ipynb`, Kaggle, `docs/gpu_setup.md` | ✅ written | Never run yet; throughput unmeasured. The laptop GPU (RTX 3050, 6 GB) is too small for Gemma E4B |
-| Smoke test (`smoke_test.py`) | ✅ mock and real paths (real path added 2026-10-05) | A Gemma server and a Jev key |
-| `results/REPORT.md` | skeleton | Filled in S7 |
+Verified: ~420 offline tests (ruff, mypy, CI clean); every pipeline end to end on mocks; a
+**real** smoke test (Gemma 4 26B + Jev, 3/3 solved); real Jev, Gemma, self-judge calls
+(findings in D8, D9, D11, D12, D13).
 
-**In short: the software is built; no real experiment has run yet.** Two external things
-block every real result: **a Jev API key** and **a running Gemma server**.
+| Area | Status |
+|---|---|
+| Search: PUCT, async MCTS with virtual loss, dedupe, extraction, prior floor, tree view | ✅ done |
+| Generators: hosted chat API (OpenRouter / Gemini, rate limit, cost tracking) and self-hosted completions | ✅ done; real calls on both hosted routes |
+| Judges: Jev (every HTTP route), Gemma self-judge (B4), PRM (B5), uniform / constant / hybrid | ✅ done; Jev and self-judge checked on real calls; PRM offline-tested only (needs a GPU) |
+| Spending safety: Jev cap, hosted-Gemma cap, pre-run estimates with `--yes` above $1 | ✅ done |
+| Data and grading (MATH-500, MATH train, AIME 2024–26) | ✅ done (500/500 grader agreement) |
+| Baselines B1, B2, B3, C (`configs/c31b.yaml`) | ✅ done |
+| Runner, metrics, plots; pilot pipeline and report | ✅ done |
+| `results/REPORT.md` | method, judges, setup, known limitations written; results pending |
+| **Real runs (S2 pilot → S7)** | ⏸ paused: need OpenRouter credit (Jev; Gemma for speed) |
+
+Partial outputs already on disk (git-ignored): `results/pilot` (63 level-5 traces from the
+Gemini route), `results/pilot_openrouter_partial` (OpenRouter route), probes in
+`results/pilot_probe*`. If the real pilot uses a different Gemma route than `results/pilot`
+did, move that folder aside first (one route per study).
+
+Not planned: S8 (expert iteration) needs fine-tuning Gemma, which a hosted API can't do.
 
 ---
 

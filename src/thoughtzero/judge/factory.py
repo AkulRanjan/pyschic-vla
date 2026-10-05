@@ -32,8 +32,11 @@ def make_judge(cfg: JudgeCfg, generator: Any = None) -> Judge:
 
         return GemmaSelfJudge(cfg, generator)
     if cfg.kind == "prm":
-        # needs a local GPU for Qwen2.5-Math-PRM-7B (PLAN.md D7)
-        raise NotImplementedError("PRMJudge (B5) is not implemented (PLAN.md D7)")
+        from thoughtzero.judge.prm import PRMJudge, torch_available
+
+        if not torch_available():  # reported as unavailable and skipped, not an error per call
+            raise NotImplementedError("the PRM judge needs the [prm] extra (torch) and a GPU")
+        return PRMJudge(cfg)
     if cfg.kind == "uniform":
         return UniformJudge()
     if cfg.kind == "hybrid":

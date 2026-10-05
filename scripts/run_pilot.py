@@ -29,7 +29,15 @@ from thoughtzero.eval.methods import (
     build_judge,
     judge_needs_generator,
 )
-from thoughtzero.eval.runner import CostConfirmationRequired, check_cost, git_commit, parse_shard
+from thoughtzero.eval.runner import (
+    GEMMA_CONTINUATION_CALL,
+    GEMMA_SOLUTION_CALL,
+    CostConfirmationRequired,
+    check_cost,
+    gemma_call_usd,
+    git_commit,
+    parse_shard,
+)
 from thoughtzero.eval.toolkit import Toolkit, mock_toolkit, real_toolkit
 from thoughtzero.llm.prompts import SOUND_VARIANTS
 from thoughtzero.pilot import mc_label, report, score, traces
@@ -179,6 +187,19 @@ def prepare_out(cfg: Config, args: argparse.Namespace) -> Path:
     return out
 
 
+def _confirm(gemma_usd: float, args: argparse.Namespace, cfg: Config) -> bool:
+    """Hosted-Gemma estimate for a stage; False (refuse) above the threshold without --yes."""
+    if not gemma_usd:
+        return True
+    print(f"Estimated hosted-Gemma cost for this stage: ${gemma_usd:.4f}")
+    try:
+        check_cost(gemma_usd, args.yes, cfg.budget.confirm_above_usd)
+    except CostConfirmationRequired as e:
+        print(f"REFUSING: {e}", file=sys.stderr)
+        return False
+    return True
+
+
 async def run(cfg: Config, args: argparse.Namespace, out: Path) -> int:
     stages = STAGES if args.stage == "all" else [args.stage]
     tk: Toolkit = mock_toolkit() if args.mock else real_toolkit()
@@ -186,6 +207,9 @@ async def run(cfg: Config, args: argparse.Namespace, out: Path) -> int:
     problems = load_pilot_problems(cfg, args.mock)
     pb = {p.id: p for p in problems}
 
+    trace_usd = gemma_call_usd(cfg, GEMMA_SOLUTION_CALL, len(problems))
+    if "traces" in stages and not args.mock and not _confirm(trace_usd, args, cfg):
+        return 2
     if "traces" in stages:
         st = await traces.generate_traces(
             problems,
@@ -208,6 +232,10 @@ async def run(cfg: Config, args: argparse.Namespace, out: Path) -> int:
     if stages != ["traces"]:
         print(f"{len(tl)} traces -> {len(prefixes)} prefixes")
 
+    if "label" in stages and not args.mock:
+        n_calls = len(prefixes) * cfg.pilot.m_completions
+        if not _confirm(gemma_call_usd(cfg, GEMMA_CONTINUATION_CALL, n_calls), args, cfg):
+            return 2
     if "label" in stages:
         st = await mc_label.label_prefixes(
             prefixes,

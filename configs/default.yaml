@@ -7,6 +7,10 @@ generator:
   temperature: 0.9
   top_p: 0.95
   max_step_tokens: 256
+  usd_per_mtok_in: ${GEMMA_USD_PER_MTOK_IN:-0}     # hosted Gemma prices; 0 = free / self-hosted
+  usd_per_mtok_out: ${GEMMA_USD_PER_MTOK_OUT:-0}
+  max_rpm: ${GEMMA_MAX_RPM:-0}    # requests/minute cap; 0 = none (Gemini free tier: 30)
+  max_solution_tokens: 4096     # 2048 cut off 25% of level-5 solutions (results/DECISIONS.md)
   stop: ["\n\nStep", "\n\n\n"]
 judge:
   kind: jev                     # jev | self | prm | uniform | hybrid

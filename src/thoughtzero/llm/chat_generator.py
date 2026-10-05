@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from collections.abc import Sequence
 from typing import Any
 
@@ -31,6 +32,7 @@ from tenacity import AsyncRetrying, retry_if_exception, stop_after_attempt, wait
 from thoughtzero import accounting
 from thoughtzero.config import Config, GeneratorCfg
 from thoughtzero.data.grading import has_final_answer
+from thoughtzero.judge import budget
 from thoughtzero.llm.gemma import THINKING_MARKERS, _derive_seed, _is_retryable
 from thoughtzero.llm.prompts import generator_chat_messages, split_steps, step_header
 from thoughtzero.llm.tokenize import ChatTokenizer, HFChatTokenizer
@@ -38,6 +40,7 @@ from thoughtzero.types import GenOut
 
 log = logging.getLogger(__name__)
 
+GEMINI_HOST = "generativelanguage.googleapis.com"
 LOGPROB_ATTEMPTS = 3  # a reply can lack logprobs (provider-dependent): ask again
 
 
@@ -45,7 +48,7 @@ LOGPROB_ATTEMPTS = 3  # a reply can lack logprobs (provider-dependent): ask agai
 HOSTED_KEYS = {
     "openrouter.ai": "OPENROUTER_API_KEY",
     # Gemini API's OpenAI-compatible endpoint (Gemma 4 26B-A4B / 31B; AI Studio key)
-    "generativelanguage.googleapis.com": "GEMINI_API_KEY",
+    GEMINI_HOST: "GEMINI_API_KEY",
 }
 
 
@@ -69,6 +72,23 @@ def steps_from_reply(text: str, first_number: int) -> list[str]:
     else:
         steps = split_steps(text, first_number=first_number)
     return [s for s in steps if s]
+
+
+class RateLimiter:
+    """Spaces requests at least ``60 / rpm`` seconds apart (free tiers cap requests/minute;
+    the Gemini API's free tier allows 30/min for Gemma 4 26B, checked 2026-10-05)."""
+
+    def __init__(self, rpm: float) -> None:
+        self.interval = 60.0 / rpm
+        self._next = 0.0
+        self._lock = asyncio.Lock()
+
+    async def wait(self) -> None:
+        async with self._lock:
+            now = time.monotonic()
+            start = max(now, self._next)
+            self._next = start + self.interval
+        await asyncio.sleep(start - now)
 
 
 class ChatGenerator:
@@ -102,6 +122,7 @@ class ChatGenerator:
             timeout=request_timeout_s,
         )
         self._sem = asyncio.Semaphore(cfg.max_concurrency)
+        self._limiter = RateLimiter(cfg.max_rpm) if cfg.max_rpm else None
 
     @classmethod
     def from_config(
@@ -113,6 +134,20 @@ class ChatGenerator:
 
     def count_tokens(self, text: str) -> int:
         return self.tokenizer.count_tokens(text)
+
+    def _record(self, prompt_tokens: int, completion_tokens: int) -> None:
+        """Ledger tokens and USD; charges the Gemma spend cap (BudgetExceeded past it)."""
+        usd = (
+            prompt_tokens * self.cfg.usd_per_mtok_in + completion_tokens * self.cfg.usd_per_mtok_out
+        ) / 1e6
+        accounting.record_gemma(prompt_tokens, completion_tokens, usd)
+        budget.charge_gemma(usd)
+
+    async def _create(self, kwargs: dict[str, Any]) -> Any:
+        """One chat request, paced by ``generator.max_rpm`` (every attempt counts)."""
+        if self._limiter is not None:
+            await self._limiter.wait()
+        return await self.client.chat.completions.create(**kwargs)
 
     async def _chat(
         self,
@@ -133,7 +168,8 @@ class ChatGenerator:
             kwargs["top_p"] = self.cfg.top_p
         if stop:
             kwargs["stop"] = list(stop)
-        if self.seed is not None:  # passed for reproducibility where the route honours it
+        # passed for reproducibility where the route honours it; the Gemini API rejects it
+        if self.seed is not None and GEMINI_HOST not in self.cfg.base_url:
             kwargs["seed"] = _derive_seed(self.seed, repr(messages), sample)
         kwargs.update(self._routing())
         async with self._sem:
@@ -145,14 +181,14 @@ class ChatGenerator:
                 reraise=True,
             ):
                 with attempt:
-                    resp = await self.client.chat.completions.create(**kwargs)
+                    resp = await self._create(kwargs)
         text = (resp.choices[0].message.content or "") if resp.choices else ""
         usage = resp.usage
         if usage is not None:
-            accounting.record_gemma(usage.prompt_tokens, usage.completion_tokens)
+            self._record(usage.prompt_tokens, usage.completion_tokens)
         else:
             prompt_text = "\n".join(m["content"] for m in messages)
-            accounting.record_gemma(self.count_tokens(prompt_text), self.count_tokens(text))
+            self._record(self.count_tokens(prompt_text), self.count_tokens(text))
         if any(mark in text for mark in THINKING_MARKERS):
             log.warning("Thinking-mode markup in generator output; check the model / route")
         return text
@@ -165,6 +201,9 @@ class ChatGenerator:
         For ``judge/self_judge.py``. Routes may return fewer than ``top_k`` (OpenRouter's
         Gemma 4: 5 when asked for 5).
         """
+        if GEMINI_HOST in self.cfg.base_url:
+            # its OpenAI-compatible endpoint rejects logprobs ("Unknown name logprobs")
+            raise NotImplementedError("the Gemini API doesn't return logprobs (self-judge)")
         kwargs: dict[str, Any] = {
             "model": self.cfg.model,
             "messages": messages,
@@ -184,9 +223,9 @@ class ChatGenerator:
                     reraise=True,
                 ):
                     with attempt:
-                        resp = await self.client.chat.completions.create(**kwargs)
+                        resp = await self._create(kwargs)
             if resp.usage is not None:
-                accounting.record_gemma(resp.usage.prompt_tokens, resp.usage.completion_tokens)
+                self._record(resp.usage.prompt_tokens, resp.usage.completion_tokens)
             logprobs = resp.choices[0].logprobs if resp.choices else None
             if logprobs is not None and logprobs.content:
                 return {t.token: t.logprob for t in logprobs.content[0].top_logprobs}
@@ -194,9 +233,17 @@ class ChatGenerator:
         return {}
 
     def _routing(self) -> dict[str, Any]:
-        """OpenRouter provider routing (``generator.provider``); nothing for other endpoints."""
+        """Endpoint-specific request fields.
+
+        - OpenRouter: provider routing (``generator.provider``).
+        - Gemini API: Gemma 4 thinks by default there, and its thoughts (``<thought>...``)
+          eat the step's token budget; ``reasoning_effort="minimal"`` switches thinking off
+          ("none" is rejected for Gemma). Checked 2026-10-05 (docs/verified_apis.md G13).
+        """
         if "openrouter.ai" in self.cfg.base_url and self.cfg.provider:
             return {"extra_body": {"provider": dict(self.cfg.provider)}}
+        if GEMINI_HOST in self.cfg.base_url:
+            return {"reasoning_effort": "minimal"}
         return {}
 
     def _messages(self, problem: str, steps: Sequence[str], next_step_only: bool) -> Any:

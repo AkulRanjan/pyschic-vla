@@ -168,3 +168,19 @@ async def test_other_endpoints_get_no_provider_field(respx_mock: Any) -> None:
     route = respx_mock.post(URL).mock(return_value=reply("Step 2: a"))
     await make_gen().propose("p", ["s"], 1)
     assert "provider" not in sent(route.calls.last)
+
+
+async def test_gemini_requests_switch_thinking_off(respx_mock: Any) -> None:
+    g_base = "https://generativelanguage.googleapis.com/v1beta/openai"
+    route = respx_mock.post(f"{g_base}/chat/completions").mock(return_value=reply("Step 2: a"))
+    cfg = GeneratorCfg(api="chat", base_url=g_base, model="gemma-4-26b-a4b-it")
+    client = AsyncOpenAI(
+        base_url=g_base, api_key="k", max_retries=0, http_client=httpx.AsyncClient()
+    )
+    gen = ChatGenerator(cfg, WordTokenizer(), client=client)
+    await gen.propose("p", ["s"], 1)
+    body = sent(route.calls.last)
+    assert body["reasoning_effort"] == "minimal" and "provider" not in body
+    assert "seed" not in body  # the Gemini API rejects it
+    with pytest.raises(NotImplementedError, match="logprobs"):
+        await gen.first_token_logprobs([{"role": "user", "content": "q"}])

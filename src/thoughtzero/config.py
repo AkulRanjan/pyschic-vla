@@ -45,6 +45,13 @@ class GeneratorCfg(_Section):
     max_solution_tokens: int = 2048
     stop: list[str] = ["\n\nStep", "\n\n\n"]
     max_concurrency: int = 32
+    # requests per minute for the chat generator; 0 = unlimited. The Gemini API free tier
+    # allows 30/min for Gemma 4 26B (GEMMA_MAX_RPM in .env)
+    max_rpm: float = Field(default=0.0, ge=0.0)
+    # hosted-Gemma prices per million tokens (0 = free tier or self-hosted); they feed the
+    # ledger's gemma_usd, the budget.max_gemma_usd cap and the pre-run estimate
+    usd_per_mtok_in: float = Field(default=0.0, ge=0.0)
+    usd_per_mtok_out: float = Field(default=0.0, ge=0.0)
     # OpenRouter provider routing (sent as "provider" with generator.api=chat on OpenRouter).
     # 13 providers serve Gemma 4 26B at bf16 / fp8 / unknown precision, and not all support
     # logprobs, seed or stop: keep every call on full-precision providers that honour every
@@ -94,7 +101,8 @@ class SearchCfg(_Section):
 
 
 class BudgetCfg(_Section):
-    max_usd: float = 5.0
+    max_usd: float = 5.0  # Jev
+    max_gemma_usd: float = 10.0  # hosted Gemma (generator.usd_per_mtok_*)
     confirm_above_usd: float = 1.0
 
 
