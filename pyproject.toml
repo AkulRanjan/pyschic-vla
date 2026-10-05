@@ -1,0 +1,46 @@
+[project]
+name = "thoughtzero"
+version = "0.1.0"
+description = "AlphaZero-style tree search over reasoning steps, judged by Jev"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+    "tenacity>=8.2",
+    "diskcache>=5.6",
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "ruff>=0.4",
+    "mypy>=1.9",
+]
+prm = [
+    "torch>=2.2",
+    "transformers>=4.40",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+
+[tool.pytest.ini_options]
+markers = [
+    "network: tests that require network access and real API keys (skipped in CI)",
+]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
