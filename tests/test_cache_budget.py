@@ -82,3 +82,20 @@ def test_estimate_run_cost():
     assert budget_module.estimate_run_cost(1_000_000, 1.0, usd_per_mtok=0.042) == pytest.approx(
         0.042
     )
+
+
+@pytest.mark.parametrize("mock", [False, True])
+def test_run_scripts_arm_the_budget_cap_for_real_runs(mock, monkeypatch):
+    import argparse
+
+    from thoughtzero.eval.cli import add_run_args, setup
+
+    monkeypatch.setattr(budget_module, "current_guard", None)
+    parser = argparse.ArgumentParser()
+    add_run_args(parser, "configs/default.yaml")
+    setup(parser.parse_args(["--set", "budget.max_usd=2.5", *(["--mock"] if mock else [])]))
+    if mock:
+        assert budget_module.current_guard is None
+    else:
+        assert budget_module.current_guard is not None
+        assert budget_module.current_guard.max_usd == 2.5

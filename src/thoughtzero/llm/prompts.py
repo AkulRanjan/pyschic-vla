@@ -15,7 +15,7 @@ import re
 from collections.abc import Sequence
 from typing import Protocol
 
-PROMPT_VERSION = "g2"  # bumped: judge section filled in (SOUND_VARIANTS, judge_state, ...)
+PROMPT_VERSION = "g3"  # g3: SOUND_VARIANTS[2] reworded so "yes" means sound
 
 
 class ChatTemplater(Protocol):
@@ -188,9 +188,10 @@ SOUND_VARIANTS: list[str] = [
         "mathematical or logical errors, regardless of whether it reaches a final "
         "answer yet?"
     ),
+    # every variant must ask so that "yes" means SOUND (the value is P(yes))
     (
-        "Would a careful grader find any error in the reasoning or arithmetic shown "
-        "so far, even if the solution isn't finished?"
+        "Would a careful grader accept all of the reasoning and arithmetic shown so far "
+        "as free of errors, even though the solution may not be finished?"
     ),
 ]
 

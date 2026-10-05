@@ -3,12 +3,8 @@
 ThoughtZero: training-free AlphaZero-style MCTS over math reasoning steps. Gemma 4 E4B proposes steps; Jev gives priors and values. The full spec is in `SPEC.md`.
 
 ## Start of every session
-1. Read `SPEC.md`, this file, and `team/<YourName>.md` for the person you're working with (Prakhar, Jagriti, Akul or Harjas):
-   - 1 Prakhar: search and integration
-   - 2 Jagriti: judge
-   - 3 Akul: generator, data and GPU
-   - 4 Harjas: eval and pilot
-2. Only edit files that person owns (`team/<YourName>.md` §B2). For anything else, say what change to request from its owner.
+1. Read `SPEC.md`, this file and `PLAN.md` (the solo plan: current status and remaining phases).
+2. **Prakhar now owns the whole project alone** (since 2026-10-05). The per-person ownership rules in `team/*.md` no longer apply; those files are kept as background on how each module was designed (Akul: generator/data, Jagriti: judge, Harjas: eval/pilot).
 3. Work one phase at a time. Check the phase's definition of done before moving on.
 
 ## Rules (SPEC.md §13)
@@ -33,7 +29,7 @@ ThoughtZero: training-free AlphaZero-style MCTS over math reasoning steps. Gemma
 - Judge priors sum to 1; values are in [0, 1].
 - `search()` never receives the ground-truth answer.
 - Token and cost accounting goes through `thoughtzero.accounting` (`record_gemma`, `record_jev`) via a per-problem ContextVar ledger.
-- Shared files (`types.py`, `config.py`, `accounting.py`, `configs/default.yaml`, `pyproject.toml`, `SPEC.md`) change only by a PR tagged to all four.
+- Interface files (`types.py`, `config.py`, `accounting.py`, `configs/default.yaml`) are the contract every module codes against: change them deliberately, and update the mocks and tests in the same commit.
 
 ## Commands
 ```bash

@@ -82,7 +82,6 @@ class JevJudge:
         self.client = JevClient(cfg)
         self.cache = DiskCache()
         self.truncation_count = 0
-        self._last_shuffle_seed = ""
 
     async def _ask(self, state: str, questions: dict[str, dict]) -> dict[str, dict]:
         key = cache_key(state, questions, self.cfg.jev_model, PROMPT_VERSION)
@@ -119,13 +118,19 @@ class JevJudge:
     def _option_keys(self, n: int) -> list[str]:
         return [f"c{i}" for i in range(n)]
 
+    def _option_order(self, candidates: list[str]) -> list[int]:
+        """Original candidate index shown at each option position.
+
+        Derived from the candidates alone (never from instance state), so concurrent
+        expansions can't un-shuffle each other's answers.
+        """
+        if not self.cfg.shuffle_options:
+            return list(range(len(candidates)))
+        return _shuffle_permutation(" ".join(candidates), len(candidates))
+
     def _build_prior_questions(self, candidates: list[str]) -> dict[str, dict]:
         option_keys = self._option_keys(len(candidates))
-        order = (
-            _shuffle_permutation(" ".join(candidates), len(candidates))
-            if self.cfg.shuffle_options
-            else list(range(len(candidates)))
-        )
+        order = self._option_order(candidates)
 
         if self.cfg.prior_mode == "choice":
             options = {option_keys[pos]: candidates[orig] for pos, orig in enumerate(order)}
@@ -144,7 +149,11 @@ class JevJudge:
             }
         raise ValueError(f"unknown prior_mode: {self.cfg.prior_mode!r}")
 
-    def _parse_priors(self, answers: dict[str, dict], n: int) -> list[float]:
+    def _parse_priors(
+        self, answers: dict[str, dict], n: int, candidates: list[str] | None = None
+    ) -> list[float]:
+        """Priors in the original candidate order. ``candidates`` is required with
+        ``shuffle_options`` (to undo the shuffle)."""
         option_keys = self._option_keys(n)
 
         if self.cfg.prior_mode == "choice":
@@ -162,9 +171,10 @@ class JevJudge:
         priors_by_position = renormalize(by_position)
 
         if self.cfg.shuffle_options:
-            perm = _shuffle_permutation(self._last_shuffle_seed, n)
+            if candidates is None:
+                raise ValueError("shuffle_options needs the candidates to undo the shuffle")
             priors_by_original_index = [0.0] * n
-            for pos, orig in enumerate(perm):
+            for pos, orig in enumerate(self._option_order(candidates)):
                 priors_by_original_index[orig] = priors_by_position[pos]
             return priors_by_original_index
         return priors_by_position
@@ -176,20 +186,17 @@ class JevJudge:
         if truncated:
             self.truncation_count += 1
 
-        if self.cfg.shuffle_options:
-            self._last_shuffle_seed = " ".join(candidates)
-
         if not steps:
             questions = self._build_prior_questions(candidates)
             answers = await self._ask(judge_state(problem, steps), questions)
-            return self._parse_priors(answers, len(candidates)), self.cfg.root_value
+            return self._parse_priors(answers, len(candidates), candidates), self.cfg.root_value
 
         state = judge_state(problem, steps)
         questions = {"sound": {"type": "noul", "instructions": self.sound_instruction}}
         questions.update(self._build_prior_questions(candidates))
         answers = await self._ask(state, questions)
         value = float(answers["sound"]["noul"])
-        return self._parse_priors(answers, len(candidates)), value
+        return self._parse_priors(answers, len(candidates), candidates), value
 
     async def prior_only(
         self, problem: str, steps: list[str], candidates: list[str]
@@ -199,12 +206,10 @@ class JevJudge:
         steps, truncated = _truncate_steps(problem, steps, self.cfg.max_state_tokens)
         if truncated:
             self.truncation_count += 1
-        if self.cfg.shuffle_options:
-            self._last_shuffle_seed = " ".join(candidates)
         state = judge_state(problem, steps)
         questions = self._build_prior_questions(candidates)
         answers = await self._ask(state, questions)
-        return self._parse_priors(answers, len(candidates))
+        return self._parse_priors(answers, len(candidates), candidates)
 
     async def value_only(self, problem: str, steps: list[str]) -> float:
         return await self.step_sound(problem, steps)

@@ -2,6 +2,8 @@
 truncation/shuffle (spec A4.6) — no network, no model load.
 """
 
+import asyncio
+
 import pytest
 
 from thoughtzero.config import JudgeCfg, load_config
@@ -160,3 +162,29 @@ def test_shuffle_permutation_varies_with_seed():
     p1 = _shuffle_permutation("state A", 6)
     p2 = _shuffle_permutation("state B", 6)
     assert p1 != p2
+
+
+class _EchoClient:
+    """Fake Jev transport: each option's probability is the number written in its text."""
+
+    async def ask(self, state: str, questions: dict) -> dict:
+        await asyncio.sleep(0.01)  # let another expansion run in between
+        options = questions["next"]["options"]
+        answers = {"next": {"probabilities": {k: float(v) for k, v in options.items()}}}
+        if "sound" in questions:
+            answers["sound"] = {"noul": 0.5}
+        return answers
+
+
+async def test_shuffled_priors_stay_with_their_candidates_under_concurrency(tmp_path):
+    from thoughtzero.judge.cache import DiskCache
+
+    judge = JevJudge(JudgeCfg(transport="local_stub", shuffle_options=True))
+    judge.client = _EchoClient()  # type: ignore[assignment]
+    judge.cache = DiskCache(str(tmp_path / "cache"))
+    a, b = ["1", "2", "3", "4", "5"], ["50", "40", "30", "20", "10"]
+    (pa, _), (pb, _) = await asyncio.gather(
+        judge.prior_and_value("p", ["s"], a), judge.prior_and_value("p", ["s"], b)
+    )
+    assert pa == pytest.approx([int(x) / 15 for x in a])
+    assert pb == pytest.approx([int(x) / 150 for x in b])

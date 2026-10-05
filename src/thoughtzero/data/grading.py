@@ -199,6 +199,28 @@ def _math_verify(pred: str, gold: str) -> bool:
     return bool(verify(gold_p, pred_p, timeout_seconds=None))
 
 
+_warm_lock = threading.Lock()
+_warmed = False
+
+
+def _warm_up_math_verify() -> None:
+    """Import math-verify and run one tiny check, once per process, outside any timeout.
+
+    The first call loads sympy and the LaTeX parser, which can take longer than the
+    per-comparison timeout on a cold machine (e.g. a fresh CI runner) and would
+    otherwise make a correct answer time out.
+    """
+    global _warmed
+    with _warm_lock:
+        if _warmed:
+            return
+        try:
+            _math_verify("1", "1")
+        except Exception as e:
+            log.debug("math-verify warm-up failed: %s", e)
+        _warmed = True
+
+
 def _math_verify_with_timeout(pred: str, gold: str, timeout_s: float) -> bool | None:
     """Run math-verify in a daemon thread. None on timeout or error.
 
@@ -206,6 +228,7 @@ def _math_verify_with_timeout(pred: str, gold: str, timeout_s: float) -> bool | 
     a hung check is abandoned (daemon) rather than stopped. That is acceptable
     for rare cases and much cheaper than a subprocess per comparison.
     """
+    _warm_up_math_verify()
     result: list[bool] = []
 
     def run() -> None:
