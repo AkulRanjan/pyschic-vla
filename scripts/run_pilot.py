@@ -23,7 +23,12 @@ from typing import Any
 
 from thoughtzero.config import Config, JudgeCfg, dump_resolved
 from thoughtzero.eval.cli import add_run_args, mock_problems, setup
-from thoughtzero.eval.methods import MethodUnavailable, build_generator, build_judge
+from thoughtzero.eval.methods import (
+    MethodUnavailable,
+    build_generator,
+    build_judge,
+    judge_needs_generator,
+)
 from thoughtzero.eval.runner import CostConfirmationRequired, check_cost, git_commit, parse_shard
 from thoughtzero.eval.toolkit import Toolkit, mock_toolkit, real_toolkit
 from thoughtzero.llm.prompts import SOUND_VARIANTS
@@ -114,7 +119,12 @@ async def stage_score(
                 update["sound_variant"] = v
             jcfg = cfg.judge.model_copy(update=update)
             try:
-                judge = build_judge(jcfg, seed=cfg.seed, mock=args.mock)
+                gen = (
+                    build_generator(cfg, mock=args.mock)
+                    if judge_needs_generator(jcfg) and not args.mock
+                    else None
+                )
+                judge = build_judge(jcfg, seed=cfg.seed, mock=args.mock, generator=gen)
             except (MethodUnavailable, ValueError) as e:  # e.g. PRM not available: skip it
                 print(f"skipping judge {name}: {e}", file=sys.stderr)
                 continue

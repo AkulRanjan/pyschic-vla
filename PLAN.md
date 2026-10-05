@@ -20,7 +20,8 @@ All code paths run end to end **offline** (mock generator and judge): `pytest` (
 | Data and grading: MATH-500, MATH train, AIME 2024–26, `math-verify` grading | ✅ done (grader checked 500/500 on MATH-500) | — |
 | Baselines: CoT (B1), self-consistency (B2), best-of-N (B3), 31B ceiling (C) | ✅ done | Real runs |
 | Judge: `JevJudge` (cache, budget cap, prior modes, truncation, shuffle), uniform, constant, hybrid, factory | ✅ done; real HTTP routes to Jev (direct, OpenRouter, OpenCode Zen, Vercel) built to the official API docs and tested offline | **An API key** (S0); then one real call to confirm (`probe_jev.py`) |
-| Judge: `GemmaSelfJudge` (B4), `PRMJudge` (B5) | ❌ stubs | Phase S3 |
+| Judge: `GemmaSelfJudge` (B4) | ✅ done; checked on real Gemma 26B | Quality measured in the pilot (D12) |
+| Judge: `PRMJudge` (B5) | ❌ not built | Needs a ~15 GB local GPU (D7) |
 | Eval: runner (resumable, shardable), metrics, plots, analysis | ✅ done | Real runs |
 | Pilot: traces, Monte Carlo labels, judge scores, sensitivity, report with GO / PARTIAL / NO-GO | ✅ done | Real run |
 | Generator serving: **Gemma 4 26B-A4B on OpenRouter** (`generator.api=chat`). Self-hosted alternatives kept: `notebooks/colab_gemma.ipynb`, Kaggle, `docs/gpu_setup.md` | ✅ written | Never run yet; throughput unmeasured. The laptop GPU (RTX 3050, 6 GB) is too small for Gemma E4B |
@@ -50,6 +51,7 @@ that needs them. Write each decision down in `results/DECISIONS.md` with its dat
 | D9 | **Zero priors.** Real Jev returns choice probabilities rounded to 2 decimals, with exact 0 for options it rules out; PUCT then never explores those children, even when Jev is wrong (seen: it gave 0 to the step that catches an arithmetic slip). The spec only fills *missing* options with an epsilon. | S2 | Add a prior floor (e.g. mix 5% uniform into every prior) as a config flag, and compare it with the spec version (no floor) in the pilot or S4. |
 | D10 | **Generator = Gemma 4 26B-A4B on OpenRouter** (decided 2026-10-05; `results/DECISIONS.md`). | done | The report must describe the model as a 26B MoE with ~4B active parameters. |
 | D11 | **Branching diversity.** At T=0.9 the 26B model's next-step samples are often rephrasings (2–5 distinct of 6). | S4 | Measure distinct candidates after dedupe on the dev run; try T=1.0 (Gemma's default) on the train split. |
+| D12 | **Self-judge quality (B4).** Real Gemma 26B as judge: yes/no answers are all-or-nothing (1.000 / 0.000), it rated an arithmetic slip and the resulting wrong answer 1.000, and on a close call its priors flipped between runs (0.55/0.40 vs 0.26/0.71). Its priors after an obvious slip were good. | S2 | The pilot measures it next to Jev (`--judges jev,self`); no change needed before then. |
 
 ---
 
@@ -88,7 +90,14 @@ Your steps:
 **Done when:** `probe_jev.py` passes on a TypeSafe route (done), and the Colab notebook
 serves Gemma with sane output.
 
-### S3 first. Alternative judges (days 1–4, offline; spec Phase 3 needs them)
+### S3. Alternative judges — ✅ self-judge done 2026-10-05; PRM skipped (D7)
+
+`judge/self_judge.py`: Gemma (the generator model) answers Jev's questions; values from
+`p(Yes)/(p(Yes)+p(No))`, priors from the letters A, B, C, ... (first-token logprobs, one
+request each). Wired into `make_judge` / `build_judge` (B4 `tz_self`, pilot `--judges self`,
+hybrid sub-judge). Checked on real Gemma 26B (PLAN D12). The original plan follows.
+
+#### Original plan
 
 Do this while S0 is pending; it needs no keys.
 

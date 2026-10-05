@@ -7,6 +7,8 @@ erroring on every call.
 
 from __future__ import annotations
 
+from typing import Any
+
 from thoughtzero.config import JudgeCfg
 from thoughtzero.judge.hybrid import HybridJudge
 from thoughtzero.judge.jev import JevJudge
@@ -18,28 +20,35 @@ from thoughtzero.types import Judge
 CONSTANT_VALUE = 0.5
 
 
-def make_judge(cfg: JudgeCfg) -> Judge:
+def make_judge(cfg: JudgeCfg, generator: Any = None) -> Judge:
+    """``generator`` is needed only by ``kind="self"`` (also as a hybrid sub-judge): any
+    generator with ``first_token_logprobs`` (both ``llm`` generator classes)."""
     if cfg.kind == "jev":
         return JevJudge(cfg)
     if cfg.kind == "self":
-        raise NotImplementedError("GemmaSelfJudge (B4) is not implemented yet (team file A5.2)")
+        if generator is None or not hasattr(generator, "first_token_logprobs"):
+            raise NotImplementedError("the self judge needs a generator with logprobs")
+        from thoughtzero.judge.self_judge import GemmaSelfJudge
+
+        return GemmaSelfJudge(cfg, generator)
     if cfg.kind == "prm":
-        raise NotImplementedError("PRMJudge (B5) is not implemented yet (team file A5.3)")
+        # needs a local GPU for Qwen2.5-Math-PRM-7B (PLAN.md D7)
+        raise NotImplementedError("PRMJudge (B5) is not implemented (PLAN.md D7)")
     if cfg.kind == "uniform":
         return UniformJudge()
     if cfg.kind == "hybrid":
         if cfg.prior_from is None or cfg.value_from is None:
             raise ValueError("hybrid judge needs judge.prior_from and judge.value_from set")
         return HybridJudge(
-            prior_from=_sub_judge(cfg, cfg.prior_from),
-            value_from=_sub_judge(cfg, cfg.value_from),
+            prior_from=_sub_judge(cfg, cfg.prior_from, generator),
+            value_from=_sub_judge(cfg, cfg.value_from, generator),
         )
     raise ValueError(f"unknown judge kind: {cfg.kind!r}")
 
 
-def _sub_judge(cfg: JudgeCfg, name: str) -> Judge:
+def _sub_judge(cfg: JudgeCfg, name: str, generator: Any = None) -> Judge:
     if name == "constant":
         return ConstantValueJudge(CONSTANT_VALUE)
     if name == "hybrid":
         raise ValueError("a hybrid judge's prior_from/value_from cannot itself be 'hybrid'")
-    return make_judge(cfg.model_copy(update={"kind": name}))
+    return make_judge(cfg.model_copy(update={"kind": name}), generator)

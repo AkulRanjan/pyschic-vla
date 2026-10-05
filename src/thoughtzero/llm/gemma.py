@@ -274,6 +274,19 @@ class OpenAICompatibleGenerator:
 
     # ----------------------------------------------------------- for the judge
 
+    async def first_token_logprobs(
+        self, messages: list[dict[str, str]], top_k: int = 20
+    ) -> dict[str, float]:
+        """``{token: logprob}`` for the first token of the reply to ``messages`` (greedy).
+
+        Same contract as ``ChatGenerator.first_token_logprobs``; the chat template is applied
+        here and the raw completions endpoint is used.
+        """
+        prompt = self.tokenizer.apply_chat_template(messages)
+        out = await self.raw_completion(prompt, max_tokens=1, logprobs=top_k)
+        top = out["top_logprobs"]
+        return dict(top[0]) if isinstance(top, list) and top else {}
+
     async def raw_completion(
         self,
         prompt: str,
